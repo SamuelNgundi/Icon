@@ -5,13 +5,14 @@ import {
 } from 'lucide-react';
 import { ICONS, type IconPlayer, type Position } from './data/icons';
 
-type Screen = 'home' | 'setup' | 'reveal' | 'dashboard';
+type Screen = 'home' | 'setup' | 'reveal' | 'dashboard' | 'database';
 type Formation = 'wide' | 'double-striker';
 type Squad = { playerName: string; players: IconPlayer[]; revealed: boolean };
 type Tournament = { participants: string[]; squads: Squad[]; formations: Formation[]; createdAt: number };
-type Confirmation = { type: 'reset' } | { type: 'redraw'; index: number };
+type Confirmation = { type: 'reset' } | { type: 'redraw'; index: number } | { type: 'delete'; player: IconPlayer };
 
 const STORAGE_KEY = 'fc26-icon-draft-tournament';
+const ICON_DATABASE_KEY = 'fc26-icon-draft-icons';
 
 const POSITION_PLANS: Record<Formation, Position[]> = {
   wide: ['GK', 'CB', 'CB', 'LB', 'RB', 'CDM', 'CAM', 'LW', 'RW', 'ST'],
@@ -23,26 +24,34 @@ function shuffle<T>(items: T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
-function buildSquad(playerName: string, unavailable: Set<string>, formation: Formation): { squad: Squad; used: string[] } {
+function getPositionPlan(formation: Formation): Position[] {
+  if (formation === 'double-striker') {
+    const wing: Position = Math.random() < 0.5 ? 'LW' : 'RW';
+    return ['GK', 'CB', 'CB', 'LB', 'RB', 'CDM', 'CAM', wing, 'ST', 'ST'];
+  }
+  return POSITION_PLANS[formation];
+}
+
+function buildSquad(playerName: string, unavailable: Set<string>, formation: Formation, icons: IconPlayer[]): { squad: Squad; used: string[] } {
   const picked: IconPlayer[] = [];
   const localIds = new Set<string>();
   const used: string[] = [];
-  POSITION_PLANS[formation].forEach((position) => {
-    const candidates = shuffle(ICONS.filter((player) =>
-      !localIds.has(player.id) && (!unavailable.has(player.id) || unavailable.size >= ICONS.length - 10) &&
+  getPositionPlan(formation).forEach((position) => {
+    const candidates = shuffle(icons.filter((player) =>
+      !localIds.has(player.id) && (!unavailable.has(player.id) || unavailable.size >= icons.length - 10) &&
       (player.position === position || player.secondary?.includes(position)),
     ));
-    const choice = candidates[0] ?? shuffle(ICONS.filter((player) => !localIds.has(player.id) && (player.position === position || player.secondary?.includes(position))))[0];
+    const choice = candidates[0] ?? shuffle(icons.filter((player) => !localIds.has(player.id) && (player.position === position || player.secondary?.includes(position))))[0];
     if (choice) { picked.push({ ...choice, position }); localIds.add(choice.id); used.push(choice.id); }
   });
   return { squad: { playerName, players: picked, revealed: false }, used };
 }
 
-function generateTournament(participants: string[], formations: Formation[]): Tournament {
+function generateTournament(participants: string[], formations: Formation[], icons: IconPlayer[]): Tournament {
   const squads: Squad[] = [];
   const used = new Set<string>();
   participants.forEach((playerName) => {
-    const result = buildSquad(playerName, used, formations[squads.length]);
+    const result = buildSquad(playerName, used, formations[squads.length], icons);
     result.used.forEach((id) => used.add(id));
     squads.push(result.squad);
   });
@@ -50,7 +59,11 @@ function generateTournament(participants: string[], formations: Formation[]): To
 }
 
 function Flag({ code }: { code: string }) {
-  return <span className="flag" title={code}>{code === 'GB' ? '🇬🇧' : code === 'RU' ? '🇷🇺' : code === 'DE' ? '🇩🇪' : code === 'IT' ? '🇮🇹' : code === 'ES' ? '🇪🇸' : code === 'BR' ? '🇧🇷' : code === 'FR' ? '🇫🇷' : code === 'AR' ? '🇦🇷' : code === 'PT' ? '🇵🇹' : code === 'NL' ? '🇳🇱' : code === 'CZ' ? '🇨🇿' : code === 'UA' ? '🇺🇦' : code === 'BG' ? '🇧🇬' : code === 'RS' ? '🇷🇸' : '🌐'}</span>;
+  const normalizedCode = code.trim().toUpperCase();
+  const flag = /^[A-Z]{2}$/.test(normalizedCode)
+    ? String.fromCodePoint(...[...normalizedCode].map((letter) => 127397 + letter.charCodeAt(0)))
+    : '🌐';
+  return <span className="flag" title={normalizedCode}>{flag}</span>;
 }
 
 function PlayerCard({ player, onClick, small = false }: { player: IconPlayer; onClick?: () => void; small?: boolean }) {
@@ -77,9 +90,17 @@ function App() {
   const [selectedPlayer, setSelectedPlayer] = useState<IconPlayer | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [icons, setIcons] = useState<IconPlayer[]>(ICONS);
+  const [editingIcon, setEditingIcon] = useState<IconPlayer | null>(null);
+  const [iconEditorOpen, setIconEditorOpen] = useState(false);
+  const [iconForm, setIconForm] = useState<IconPlayer>({ id: '', name: '', rating: 0, position: 'GK', nation: '', nationCode: '', secondary: [] });
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
+    const savedIcons = localStorage.getItem(ICON_DATABASE_KEY);
+    if (savedIcons) {
+      try { setIcons(JSON.parse(savedIcons) as IconPlayer[]); } catch { localStorage.removeItem(ICON_DATABASE_KEY); }
+    }
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Tournament & { formation?: Formation };
@@ -92,13 +113,14 @@ function App() {
     }
   }, []);
   useEffect(() => { if (tournament) localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament)); }, [tournament]);
+  useEffect(() => { localStorage.setItem(ICON_DATABASE_KEY, JSON.stringify(icons)); }, [icons]);
 
   const activeSquad = tournament?.squads[activeParticipant];
   function startSetup() { setNames(Array.from({ length: participantCount }, () => '')); setFormations(Array.from({ length: participantCount }, () => 'wide')); setScreen('setup'); }
   function updateCount(count: number) { setParticipantCount(count); setNames((current) => Array.from({ length: count }, (_, index) => current[index] ?? '')); setFormations((current) => Array.from({ length: count }, (_, index) => current[index] ?? 'wide')); }
   function generate() {
     if (names.some((name) => !name.trim())) return;
-    const next = generateTournament(names.map((name) => name.trim()), formations);
+    const next = generateTournament(names.map((name) => name.trim()), formations, icons);
     setTournament(next); setActiveParticipant(0); setRevealIndex(0); setScreen('reveal');
   }
   function resetTournament() {
@@ -107,14 +129,37 @@ function App() {
   function redrawSquad(index: number) {
     if (!tournament) return;
     const unavailable = new Set(tournament.squads.flatMap((squad, squadIndex) => squadIndex === index ? [] : squad.players.map((player) => player.id)));
-    const next = buildSquad(tournament.participants[index], unavailable, tournament.formations[index]).squad;
+    const next = buildSquad(tournament.participants[index], unavailable, tournament.formations[index], icons).squad;
     setTournament({ ...tournament, squads: tournament.squads.map((squad, squadIndex) => squadIndex === index ? next : squad) });
   }
   function confirmAction() {
     if (!confirmation) return;
     if (confirmation.type === 'reset') resetTournament();
-    else redrawSquad(confirmation.index);
+    else if (confirmation.type === 'redraw') redrawSquad(confirmation.index);
+    else {
+      setIcons((current) => current.filter((player) => player.id !== confirmation.player.id));
+      setEditingIcon(null);
+      setIconEditorOpen(false);
+    }
     setConfirmation(null);
+  }
+  function openIconEditor(player?: IconPlayer) {
+    const next = player ?? { id: '', name: '', rating: 0, position: 'GK' as Position, nation: '', nationCode: '', secondary: [] };
+    setEditingIcon(player ?? null);
+    setIconEditorOpen(true);
+    setIconForm({ ...next, secondary: next.secondary ?? [] });
+  }
+  function saveIcon(event: React.FormEvent) {
+    event.preventDefault();
+    const normalized = { ...iconForm, id: iconForm.id.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-'), name: iconForm.name.trim(), nation: iconForm.nation.trim(), nationCode: iconForm.nationCode.trim().toUpperCase(), secondary: iconForm.secondary?.filter((position) => position !== iconForm.position) ?? [] };
+    if (!normalized.id || !normalized.name || !normalized.nation || !normalized.nationCode) return;
+    setIcons((current) => editingIcon ? current.map((player) => player.id === editingIcon.id ? normalized : player) : [...current, normalized]);
+    setEditingIcon(null);
+    setIconEditorOpen(false);
+  }
+  function deleteIcon() {
+    if (!editingIcon) return;
+    setConfirmation({ type: 'delete', player: editingIcon });
   }
   function revealNext() {
     if (!tournament) return;
@@ -129,6 +174,11 @@ function App() {
     const text = `${squad.playerName}'s ICON DRAFT\n\n${squad.players.map((p) => `${p.position}  ${p.name}`).join('\n')}`;
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); link.download = `${squad.playerName.replace(/\s+/g, '-').toLowerCase()}-icon-squad.txt`; link.click(); URL.revokeObjectURL(link.href);
   }
+  function exportIconDatabase() {
+    const groups = (Object.keys(positionLabel) as Position[]).filter((position) => position !== 'CM').map((position) => `  ${position}: [\n${icons.filter((player) => player.position === position).map((player) => `    ${JSON.stringify(player)},`).join('\n')}\n  ],`).join('\n');
+    const text = `export type Position = 'GK' | 'CB' | 'LB' | 'RB' | 'CDM' | 'CM' | 'CAM' | 'LW' | 'RW' | 'ST';\n\nexport type IconPlayer = { id: string; name: string; rating: number; position: Position; nation: string; nationCode: string; secondary?: Position[] };\n\nexport const ICONS_BY_POSITION = {\n${groups}\n};\n\nexport const ICONS: IconPlayer[] = Object.values(ICONS_BY_POSITION).flat();\n`;
+    const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); link.download = 'icons.ts'; link.click(); URL.revokeObjectURL(link.href);
+  }
   function toggleFullscreen() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
     setIsFullscreen(!isFullscreen);
@@ -136,7 +186,7 @@ function App() {
 
   if (screen === 'home') return (
     <main className="app-shell home-screen">
-      <div className="noise" /><nav className="top-nav"><Logo /><span className="nav-status"><span className="status-dot" /> OFFLINE MODE</span></nav>
+      <div className="noise" /><nav className="top-nav"><Logo /><div className="nav-actions"><button className="text-button" onClick={() => setScreen('database')}><Shield size={16} /> ICON DATABASE</button><span className="nav-status"><span className="status-dot" /> OFFLINE MODE</span></div></nav>
       <section className="hero">
         <div className="hero-copy"><p className="eyebrow"><Zap size={14} /> THE ULTIMATE OFFLINE DRAFT EXPERIENCE</p><h1>FC 26<br /><em>ICON DRAFT</em></h1><p className="hero-subtitle">Build Your Legends.<br /><strong>Rule Your Tournament.</strong></p><p className="hero-description">The only draft companion you need for your FC 26 tournament. Assemble your dream squad from football's greatest legends.</p><button className="primary-button" onClick={startSetup}>START NEW TOURNAMENT <ChevronRight size={20} /></button></div>
         <div className="hero-visual"><div className="hero-ring ring-one" /><div className="hero-ring ring-two" /><div className="hero-ball">⚽</div><div className="hero-badge"><Trophy size={18} /><span>LEGENDS<br /><b>ONLY</b></span></div></div>
@@ -151,6 +201,14 @@ function App() {
       <section className="setup-content"><div className="section-heading"><span className="eyebrow"><Gamepad2 size={14} /> TOURNAMENT CONFIGURATION</span><h2>SET THE STAGE</h2><p>Choose your players. The Icons are waiting.</p></div>
         <div className="setup-panel"><div className="panel-label">NUMBER OF PARTICIPANTS <span>REQUIRED</span></div><div className="count-options">{[4, 5, 6, 7, 8].map((count) => <button key={count} className={participantCount === count ? 'selected' : ''} onClick={() => updateCount(count)}><strong>{count}</strong><span>PLAYERS</span></button>)}</div><div className="divider" /><div className="panel-label">PLAYER ROSTER <span>{names.filter(Boolean).length}/{participantCount} READY</span></div><div className="name-grid">{names.map((name, index) => <label key={index}><span><i>{String(index + 1).padStart(2, '0')}</i> PLAYER {index + 1}</span><input value={name} onChange={(event) => setNames((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="Enter player name" maxLength={24} /><div className="player-formation"><small>FORMATION</small><button type="button" className={formations[index] === 'wide' ? 'selected' : ''} onClick={() => setFormations((current) => current.map((item, itemIndex) => itemIndex === index ? 'wide' : item))}>4-1-3-1</button><button type="button" className={formations[index] === 'double-striker' ? 'selected' : ''} onClick={() => setFormations((current) => current.map((item, itemIndex) => itemIndex === index ? 'double-striker' : item))}>4-1-2-2</button></div></label>)}</div><button className="primary-button generate-button" disabled={names.some((name) => !name.trim())} onClick={generate}>GENERATE DRAFT <Sparkles size={18} /></button></div>
       </section>
+    </main>
+  );
+
+  if (screen === 'database') return (
+    <main className="app-shell database-screen"><div className="noise" /><nav className="top-nav"><button className="back-button" onClick={() => setScreen('home')}><ArrowLeft size={17} /> BACK</button><Logo /><span className="nav-status">ICON DATABASE / ADMIN</span></nav>
+      <section className="database-content"><header className="database-heading"><div><span className="eyebrow"><Shield size={14} /> ICON DATABASE</span><h2>THE <em>LEGENDS</em> ARCHIVE</h2><p>{icons.length} available ICONs. <span className="database-save-status"><span className="status-dot" /> AUTO-SAVED LOCALLY</span></p></div><div className="database-actions"><button className="secondary-button" onClick={exportIconDatabase}><Download size={16} /> EXPORT icons.ts</button><button className="primary-button" onClick={() => openIconEditor()}><Sparkles size={16} /> ADD NEW ICON</button></div></header>
+        <div className="icon-groups">{(Object.keys(positionLabel) as Position[]).filter((position) => position !== 'CM').map((position) => <section className="icon-group" key={position}><div className="icon-group-heading"><h3>{position} <span>{positionLabel[position]}</span></h3><small>{icons.filter((player) => player.position === position).length} ICONS</small></div><div className="icon-admin-grid">{icons.filter((player) => player.position === position).map((player) => <article className="icon-admin-card" key={player.id}><div><strong>{player.name}</strong><span>{player.nation} <Flag code={player.nationCode} /></span><small>SECONDARY: {player.secondary?.join(', ') || 'NONE'}</small></div><div className="icon-admin-actions"><button onClick={() => openIconEditor(player)} title={`Edit ${player.name}`}><LayoutGrid size={15} /> EDIT</button><button className="delete-icon-button" onClick={() => setConfirmation({ type: 'delete', player })} title={`Delete ${player.name}`}><X size={15} /> DELETE</button></div></article>)}</div></section>)}</div>
+      </section>{iconEditorOpen ? <IconEditorModal icon={iconForm} isEditing={Boolean(editingIcon)} onChange={setIconForm} onSave={saveIcon} onDelete={deleteIcon} onClose={() => { setIconEditorOpen(false); setEditingIcon(null); }} /> : null}{confirmation && <ConfirmationModal confirmation={confirmation} participantName={confirmation.type === 'redraw' ? tournament?.participants[confirmation.index] : undefined} onConfirm={confirmAction} onClose={() => setConfirmation(null)} />}
     </main>
   );
 
@@ -178,15 +236,20 @@ function Logo() { return <div className="logo"><span>FC</span><strong>26</strong
 function Step({ number, icon, title, text }: { number: string; icon: React.ReactNode; title: string; text: string }) { return <div className="step"><span className="step-number">{number}</span><div className="step-icon">{icon}</div><h3>{title}</h3><p>{text}</p></div>; }
 function Pitch({ players, formation, onSelect }: { players: IconPlayer[]; formation: Formation; onSelect: (player: IconPlayer) => void }) {
   const rows: Position[][] = formation === 'double-striker'
-    ? [['ST', 'ST'], ['LW', 'CAM'], ['CDM'], ['LB', 'CB', 'CB', 'RB'], ['GK']]
+    ? [['ST', 'ST'], ['LW', 'CAM', 'RW'], ['CDM'], ['LB', 'CB', 'CB', 'RB'], ['GK']]
     : [['ST'], ['LW', 'CAM', 'RW'], ['CDM'], ['LB', 'CB', 'CB', 'RB'], ['GK']];
   const positionIndexes = new Map<Position, number>();
   return <div className="pitch"><div className="pitch-lines"><div className="center-circle" /><div className="halfway" /><div className="penalty top" /><div className="penalty bottom" /></div>{rows.map((row, rowIndex) => <div className={`pitch-row row-${rowIndex}`} key={row.join('-')}>{row.map((position, positionIndex) => { const index = positionIndexes.get(position) ?? 0; positionIndexes.set(position, index + 1); const player = players.filter((item) => item.position === position)[index]; return player ? <div className="pitch-player" key={`${position}-${positionIndex}`}><PlayerCard player={player} small onClick={() => onSelect(player)} /><span>{positionLabel[position]}</span></div> : <div key={`${position}-${positionIndex}`} />; })}</div>)}</div>;
 }
 function PlayerModal({ player, onClose }: { player: IconPlayer; onClose: () => void }) { return <div className="modal-backdrop" onClick={onClose}><div className="player-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={18} /></button><PlayerCard player={player} /><div className="modal-details"><span className="eyebrow">ICON PROFILE / {player.position}</span><h2>{player.name}</h2><p>{player.nation} <Flag code={player.nationCode} /></p><div className="detail-meta"><span>PRIMARY POSITION <b>{player.position}</b></span><span>CARD TYPE <b>ICON</b></span></div></div></div></div>; }
+function IconEditorModal({ icon, isEditing, onChange, onSave, onDelete, onClose }: { icon: IconPlayer; isEditing: boolean; onChange: (icon: IconPlayer) => void; onSave: (event: React.FormEvent) => void; onDelete: () => void; onClose: () => void }) {
+  const positions = (Object.keys(positionLabel) as Position[]).filter((position) => position !== 'CM');
+  return <div className="modal-backdrop" onClick={onClose}><form className="icon-editor-modal" onSubmit={onSave} onClick={(event) => event.stopPropagation()}><button type="button" className="modal-close" onClick={onClose}><X size={18} /></button><span className="eyebrow"><Shield size={14} /> {isEditing ? 'EDIT ICON' : 'ADD ICON'}</span><h2>{isEditing ? 'UPDATE' : 'NEW'} <em>LEGEND</em></h2><div className="icon-form-grid"><label>PLAYER NAME<input required value={icon.name} onChange={(event) => onChange({ ...icon, name: event.target.value })} /></label><label>DATABASE ID<input required disabled={isEditing} value={icon.id} onChange={(event) => onChange({ ...icon, id: event.target.value })} /></label><label>POSITION<select value={icon.position} onChange={(event) => onChange({ ...icon, position: event.target.value as Position })}>{positions.map((position) => <option key={position} value={position}>{position} — {positionLabel[position]}</option>)}</select></label><label>RATING<input type="number" min="0" max="99" value={icon.rating} onChange={(event) => onChange({ ...icon, rating: Number(event.target.value) })} /></label><label>NATION<input required value={icon.nation} onChange={(event) => onChange({ ...icon, nation: event.target.value })} /></label><label>FLAG CODE<input required maxLength={2} value={icon.nationCode} onChange={(event) => onChange({ ...icon, nationCode: event.target.value.toUpperCase() })} /></label></div><label className="secondary-position-field">SECONDARY POSITIONS<select multiple value={icon.secondary ?? []} onChange={(event) => onChange({ ...icon, secondary: Array.from(event.target.selectedOptions, (option) => option.value as Position) })}>{positions.filter((position) => position !== icon.position).map((position) => <option key={position} value={position}>{position}</option>)}</select><small>Hold Ctrl/Cmd to select multiple positions.</small></label><div className="confirmation-actions"><button type="button" className="modal-cancel" onClick={onClose}>CANCEL</button>{isEditing && <button type="button" className="modal-cancel delete-icon-button" onClick={onDelete}>DELETE</button>}<button type="submit" className="modal-confirm">SAVE ICON</button></div></form></div>;
+}
 function ConfirmationModal({ confirmation, participantName, onConfirm, onClose }: { confirmation: Confirmation; participantName?: string; onConfirm: () => void; onClose: () => void }) {
   const isReset = confirmation.type === 'reset';
-  return <div className="modal-backdrop confirmation-backdrop" onClick={onClose}><div className={`confirmation-modal ${isReset ? 'confirmation-modal--danger' : ''}`} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={18} /></button><div className="confirmation-icon">{isReset ? <RotateCcw size={27} /> : <Sparkles size={27} />}</div><span className="eyebrow">{isReset ? 'TOURNAMENT CONTROL' : 'SQUAD CONTROL'}</span><h2>{isReset ? 'RESET TOURNAMENT?' : 'REDRAW SQUAD?'}</h2><p>{isReset ? 'This will erase every participant squad and return you to the home screen.' : `Draw a fresh set of ICONS for ${participantName ?? 'this participant'}? Their current squad will be replaced.`}</p><div className="confirmation-actions"><button className="modal-cancel" onClick={onClose}>CANCEL</button><button className="modal-confirm" onClick={onConfirm}>{isReset ? 'RESET EVERYTHING' : 'REDRAW SQUAD'}</button></div></div></div>;
+  const isDelete = confirmation.type === 'delete';
+  return <div className="modal-backdrop confirmation-backdrop" onClick={onClose}><div className={`confirmation-modal ${isReset || isDelete ? 'confirmation-modal--danger' : ''}`} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={18} /></button><div className="confirmation-icon">{isReset || isDelete ? <RotateCcw size={27} /> : <Sparkles size={27} />}</div><span className="eyebrow">{isReset ? 'TOURNAMENT CONTROL' : isDelete ? 'DATABASE CONTROL' : 'SQUAD CONTROL'}</span><h2>{isReset ? 'RESET TOURNAMENT?' : isDelete ? 'DELETE ICON?' : 'REDRAW SQUAD?'}</h2><p>{isReset ? 'This will erase every participant squad and return you to the home screen.' : isDelete ? `Remove ${confirmation.player.name} from the ICON database?` : `Draw a fresh set of ICONS for ${participantName ?? 'this participant'}? Their current squad will be replaced.`}</p><div className="confirmation-actions"><button className="modal-cancel" onClick={onClose}>CANCEL</button><button className="modal-confirm" onClick={onConfirm}>{isReset ? 'RESET EVERYTHING' : isDelete ? 'DELETE ICON' : 'REDRAW SQUAD'}</button></div></div></div>;
 }
 
 export default App;
