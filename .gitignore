@@ -24,6 +24,8 @@ pnpm-debug.log*
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
+.vscode/settings.json
+.vscode/extensions.json
 
 # Operating system files
 .DS_Store
