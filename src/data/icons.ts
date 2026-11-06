@@ -2,7 +2,7 @@ export type Position = 'GK' | 'CB' | 'LB' | 'RB' | 'CDM' | 'CM' | 'CAM' | 'LW' |
 
 export type IconPlayer = { id: string; name: string; rating: number; position: Position; nation: string; nationCode: string; secondary?: Position[] };
 
-export const ICONS_BY_POSITION: Record<Exclude<Position, 'CM'>, IconPlayer[]> = {
+export const ICONS_BY_POSITION = {
   GK: [
     {"id":"yashin","name":"Yashin","rating":95,"position":"GK","nation":"Russia","nationCode":"RU"},
     {"id":"casillas","name":"Casillas","rating":92,"position":"GK","nation":"Spain","nationCode":"ES"},
@@ -63,11 +63,9 @@ export const ICONS_BY_POSITION: Record<Exclude<Position, 'CM'>, IconPlayer[]> = 
   ],
   LW: [
     {"id":"henry","name":"Henry","rating":94,"position":"LW","nation":"France","nationCode":"FR","secondary":["ST"]},
-    {"id":"nedved","name":"Nedvěd","rating":91,"position":"LW","nation":"Czechia","nationCode":"CZ","secondary":[]},
     {"id":"best","name":"George Best","rating":93,"position":"LW","nation":"Northern Ireland","nationCode":"GB","secondary":["RW"]},
     {"id":"stoichkov","name":"Stoichkov","rating":91,"position":"LW","nation":"Bulgaria","nationCode":"BG","secondary":["ST"]},
     {"id":"ribery","name":"Franck Ribéry","rating":88,"position":"LW","nation":"France","nationCode":"FR","secondary":[]},
-    {"id":"nedved","name":"Nedvěd","rating":91,"position":"LW","nation":"Czechia","nationCode":"CZ","secondary":[]},
     {"id":"ginola","name":"Ginola","rating":89,"position":"LW","nation":"France","nationCode":"FR","secondary":[]},
     {"id":"barnes","name":"John Barnes","rating":87,"position":"LW","nation":"England","nationCode":"GB","secondary":[]},
   ],
