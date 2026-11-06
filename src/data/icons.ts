@@ -1,8 +1,7 @@
 export type Position = 'GK' | 'CB' | 'LB' | 'RB' | 'CDM' | 'CM' | 'CAM' | 'LW' | 'RW' | 'ST';
-
 export type IconPlayer = { id: string; name: string; rating: number; position: Position; nation: string; nationCode: string; secondary?: Position[] };
 
-export const ICONS_BY_POSITION = {
+export const ICONS_BY_POSITION: Record<Exclude<Position, 'CM'>, IconPlayer[]> = {
   GK: [
     {"id":"yashin","name":"Yashin","rating":95,"position":"GK","nation":"Russia","nationCode":"RU"},
     {"id":"casillas","name":"Casillas","rating":92,"position":"GK","nation":"Spain","nationCode":"ES"},
