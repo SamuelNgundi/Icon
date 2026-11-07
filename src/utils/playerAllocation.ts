@@ -26,15 +26,39 @@ export function buildSquad(playerName: string, unavailable: Set<string>, formati
   return { squad: { playerName, players: picked, revealed: false }, used };
 }
 
+function chooseFairCandidate(candidates: IconPlayer[], participantRating: number, ratingTotals: number[]): IconPlayer {
+  const averageRating = candidates.reduce((total, player) => total + player.rating, 0) / candidates.length;
+  const averageSquadRating = ratingTotals.reduce((total, rating) => total + rating, 0) / ratingTotals.length;
+  const targetRating = averageSquadRating + averageRating;
+  return shuffle(candidates).sort((left, right) => {
+    const leftDistance = Math.abs(participantRating + left.rating - targetRating);
+    const rightDistance = Math.abs(participantRating + right.rating - targetRating);
+    return leftDistance - rightDistance;
+  })[0];
+}
+
 export function generateTournament(participants: string[], formations: Formation[], icons: IconPlayer[]): Tournament {
   validateUniqueIconIds(icons);
-  const squads: Squad[] = [];
+  const squads = participants.map((playerName) => ({ playerName, players: [], revealed: false })) as Squad[];
   const used = new Set<string>();
-  const order = shuffle(participants.map((playerName, index) => ({ playerName, index })));
-  order.forEach(({ playerName, index }) => {
-    const result = buildSquad(playerName, used, formations[index], icons);
-    result.used.forEach((id) => used.add(id));
-    squads[index] = result.squad;
-  });
+  const ratingTotals = participants.map(() => 0);
+  const positionPlans = formations.map(getPositionPlan);
+
+  for (let round = 0; round < 10; round += 1) {
+    for (const index of shuffle(participants.map((_, participantIndex) => participantIndex))) {
+      const position = positionPlans[index][round];
+      const candidates = icons.filter((player) =>
+        !used.has(player.id) &&
+        (player.position === position || player.secondary?.includes(position)),
+      );
+      const choice = candidates.length > 0
+        ? chooseFairCandidate(candidates, ratingTotals[index], ratingTotals)
+        : undefined;
+      if (!choice) throw new Error(`Not enough available ICONs for ${position} while building ${participants[index]}'s squad.`);
+      squads[index].players.push({ ...choice, position });
+      used.add(choice.id);
+      ratingTotals[index] += choice.rating;
+    }
+  }
   return { id: `tournament-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, participants, squads, formations, createdAt: Date.now() };
 }
