@@ -95,6 +95,6 @@ export const ICONS_BY_POSITION = {
     {"id":"cantona","name":"Cantona","rating":89,"position":"ST","nation":"France","nationCode":"FR","secondary":[]},
     {"id":"muller","name":"Müller","rating":92,"position":"ST","nation":"Germany","nationCode":"DE","secondary":[]},
   ],
-};
+} satisfies Record<Exclude<Position, 'CM'>, IconPlayer[]>;
 
 export const ICONS: IconPlayer[] = Object.values(ICONS_BY_POSITION).flat();
