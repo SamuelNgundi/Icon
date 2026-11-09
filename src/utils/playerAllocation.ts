@@ -19,19 +19,32 @@ export function validateUniqueIconIds(icons: IconPlayer[]): void {
   }
 }
 
-export function buildSquad(playerName: string, unavailable: Set<string>, formation: Formation, icons: IconPlayer[]): { squad: Squad; used: string[] } {
+export function buildSquad(
+  playerName: string,
+  unavailable: Set<string>,
+  formation: Formation,
+  icons: IconPlayer[],
+  ratingTotals: number[] = [0],
+  participantIndex = 0,
+): { squad: Squad; used: string[] } {
   const picked: IconPlayer[] = [];
   const localIds = new Set<string>();
   const used: string[] = [];
+  let participantRating = ratingTotals[participantIndex] ?? 0;
   for (const position of getPositionPlan(formation)) {
     const candidates = shuffle(icons.filter((player) =>
       !localIds.has(player.id) && !unavailable.has(player.id) &&
       !violatesExclusivePair(player.id, localIds) &&
       (player.position === position || player.secondary?.includes(position)),
     ));
-    const choice = candidates[0];
+    const choice = candidates.length > 0
+      ? chooseFairCandidate(candidates, participantRating, ratingTotals)
+      : undefined;
     if (!choice) throw new Error(`Not enough available ICONs for ${position} while building ${playerName}'s squad.`);
-    picked.push({ ...choice, position }); localIds.add(choice.id); used.push(choice.id);
+    picked.push({ ...choice, position });
+    localIds.add(choice.id);
+    used.push(choice.id);
+    participantRating += choice.rating;
   }
   return { squad: { playerName, players: picked, revealed: false }, used };
 }
@@ -40,11 +53,22 @@ function chooseFairCandidate(candidates: IconPlayer[], participantRating: number
   const averageRating = candidates.reduce((total, player) => total + player.rating, 0) / candidates.length;
   const averageSquadRating = ratingTotals.reduce((total, rating) => total + rating, 0) / ratingTotals.length;
   const targetRating = averageSquadRating + averageRating;
-  return shuffle(candidates).sort((left, right) => {
-    const leftDistance = Math.abs(participantRating + left.rating - targetRating);
-    const rightDistance = Math.abs(participantRating + right.rating - targetRating);
-    return leftDistance - rightDistance;
-  })[0];
+  const scored = shuffle(candidates).map((player) => ({
+    player,
+    distance: Math.abs(participantRating + player.rating - targetRating),
+  }));
+  const maximumDistance = Math.max(...scored.map(({ distance }) => distance));
+  const weighted = scored.map(({ player, distance }) => ({
+    player,
+    weight: 1 + (maximumDistance - distance) / Math.max(1, maximumDistance),
+  }));
+  const totalWeight = weighted.reduce((total, candidate) => total + candidate.weight, 0);
+  let threshold = Math.random() * totalWeight;
+  for (const candidate of weighted) {
+    threshold -= candidate.weight;
+    if (threshold <= 0) return candidate.player;
+  }
+  return weighted[weighted.length - 1].player;
 }
 
 export function generateTournament(participants: string[], formations: Formation[], icons: IconPlayer[]): Tournament {

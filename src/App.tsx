@@ -103,8 +103,11 @@ function App() {
   function redrawSquad(index: number) {
     if (!tournament) return;
     const unavailable = new Set(tournament.squads.flatMap((squad, squadIndex) => squadIndex === index ? [] : squad.players.map((player) => player.id)));
+    const ratingTotals = tournament.squads.map((squad, squadIndex) => squadIndex === index
+      ? 0
+      : squad.players.reduce((total, player) => total + player.rating, 0));
     try {
-      const next = buildSquad(tournament.participants[index], unavailable, tournament.formations[index], icons).squad;
+      const next = buildSquad(tournament.participants[index], unavailable, tournament.formations[index], icons, ratingTotals, index).squad;
       const timestamp = Date.now();
       const assignments = next.players.map((player, playerIndex) => ({ id: `${tournament.id}-${tournament.participants[index]}-${timestamp}-${playerIndex}`, tournamentId: tournament.id, participantName: tournament.participants[index], player: { ...player }, assignedPosition: player.position, timestamp: timestamp + playerIndex, round: (history.find((record) => record.id === tournament.id)?.assignments.filter((assignment) => assignment.participantName === tournament.participants[index]).length ?? 0) / 10 + 1 }));
       setHistory((current) => current.map((record) => record.id === tournament.id ? { ...record, assignments: [...record.assignments, ...assignments] } : record));

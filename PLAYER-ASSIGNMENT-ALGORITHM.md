@@ -70,12 +70,13 @@ The target is approximately:
 average current squad total + average eligible candidate rating
 ```
 
-Eligible candidates are then ranked by how close the participant's projected
-rating total would be to that target. The closest candidate is selected, with
-the candidate list shuffled first to preserve randomness when choices are
-similarly rated.
+Eligible candidates are scored by how close the participant's projected rating
+total would be to that target. A weighted random choice then favors candidates
+near the target without making the closest candidate deterministic. Every
+eligible candidate retains a minimum selection weight, so lower-rated ICONs can
+still appear instead of being permanently excluded by the fairness calculation.
 
-This creates a balancing effect:
+This creates a balancing effect while preserving variety:
 
 - Participants below the current average are more likely to receive stronger
   available cards.
@@ -84,6 +85,8 @@ This creates a balancing effect:
 - Ratings never determine eligibility.
 - The highest-rated card is not automatically assigned to the first
   participant.
+- Lower-rated eligible cards remain possible when they are not the perfect
+  rating match.
 
 This is balancing rather than a fixed equal-rating guarantee. Position
 eligibility and global uniqueness can limit the exact final totals.
@@ -306,7 +309,10 @@ When a participant redraws:
 
 1. The participant's existing players are excluded from the unavailable set.
 2. All other participants' current players remain unavailable.
-3. A new squad is generated using the same position and eligibility rules.
+3. A new squad is generated using the same position, eligibility and
+   rating-balancing rules as the initial tournament draw. The replacement squad
+   starts at zero and is balanced against the other participants' current
+   squad totals while each replacement player is selected.
 4. The old assignments remain in draft history.
 5. The replacement assignments are appended to the same tournament history record.
 

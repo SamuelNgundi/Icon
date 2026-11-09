@@ -4,7 +4,7 @@ An offline tournament companion for drafting legendary football ICONs and buildi
 
 ## Features
 
-- Supports 4–8 tournament participants
+- Supports 4–6 tournament participants
 - Randomly generates 10 position-aware ICONs per participant
 - Independent formation selection for every participant:
   - **4-1-3-1**: two wingers and one striker
