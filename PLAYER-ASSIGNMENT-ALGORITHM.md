@@ -88,7 +88,20 @@ This creates a balancing effect:
 This is balancing rather than a fixed equal-rating guarantee. Position
 eligibility and global uniqueness can limit the exact final totals.
 
-## Step 4: Create the Position Plan
+## Step 4: Prevent the Top-Rated Pair from Sharing a Squad
+
+The candidate filter applies one additional squad-level rule: `pele` and
+`ronaldo` are an exclusive pair. If one of these database IDs is already in a
+participant's squad, the other is excluded from that participant's remaining
+candidates.
+
+This rule does not remove either player from the tournament. The excluded ICON
+can still be assigned to another participant, subject to global uniqueness and
+position eligibility. If the rule leaves no eligible player for a required
+position, generation stops with the normal allocation error instead of
+assigning an invalid or duplicate player.
+
+## Step 5: Create the Position Plan
 
 The application supports two formations.
 
@@ -142,7 +155,7 @@ The application randomly chooses either `LW` or `RW`. It does not assign both wi
 
 The `CAM` remains a separate central position.
 
-## Step 5: Find Eligible Candidates
+## Step 6: Find Eligible Candidates
 
 For every required position, the allocator filters the complete ICON database.
 
@@ -162,7 +175,7 @@ For example, a player whose primary position is `CB` and whose secondary positio
 
 Goalkeepers cannot be selected for outfield positions unless the database explicitly lists that position as eligible.
 
-## Step 6: Prevent Duplicates Within a Squad
+## Step 7: Prevent Duplicates Within a Squad
 
 Each squad has a local `Set<string>` called `localIds`.
 
@@ -174,7 +187,7 @@ Before a candidate can be selected, its ID must not already be in this set:
 
 This prevents the same ICON from appearing twice in one participant's squad, even if the player is eligible for multiple positions.
 
-## Step 7: Prevent Duplicates Across the Tournament
+## Step 8: Prevent Duplicates Across the Tournament
 
 The complete tournament has a global `Set<string>` called `used`.
 
@@ -199,17 +212,20 @@ No duplicate ICON IDs within one squad.
 No duplicate ICON IDs across the current tournament.
 ```
 
-## Step 8: Randomize Candidates
+## Step 9: Randomize Candidates
 
 After filtering for:
 
 - Position eligibility
 - Local squad availability
 - Global tournament availability
+- Exclusive Pelé/Ronaldo pair rule
 
-the remaining candidates are shuffled using Fisher-Yates.
+the remaining candidates are shuffled using Fisher-Yates before the
+rating-balancing choice is made.
 
-The first player from the shuffled list is selected.
+The selected player is the eligible candidate that best maintains the current
+rating balance, with shuffle order breaking ties.
 
 This means the algorithm does not intentionally select:
 
@@ -217,9 +233,10 @@ This means the algorithm does not intentionally select:
 - The first player in the database.
 - The same predictable player sequence every time.
 
-Ratings are retained as player data, but ratings are not used to bias selection.
+Ratings are retained as player data and are used only for the fairness
+balancing described in Step 3.
 
-## Step 9: Assign the Display Position
+## Step 10: Assign the Display Position
 
 When a player is selected, the application copies the player object and assigns the position required by the squad slot:
 
@@ -231,7 +248,7 @@ This allows a player with an eligible secondary position to appear correctly in 
 
 For example, if a player is eligible for `CAM` through their secondary positions, their squad entry will display as `CAM`.
 
-## Step 10: Handle Insufficient Availability
+## Step 11: Handle Insufficient Availability
 
 If no eligible candidate remains for a required position, the allocator throws an error:
 

@@ -3,6 +3,15 @@ import { shuffle } from './random';
 import type { Formation, Squad, Tournament } from '../types';
 import type { IconPlayer } from '../data/icons';
 
+const EXCLUSIVE_PLAYER_PAIRS = [['pele', 'ronaldo']] as const;
+
+function violatesExclusivePair(playerId: string, assignedIds: Set<string>): boolean {
+  return EXCLUSIVE_PLAYER_PAIRS.some(([firstId, secondId]) =>
+    (playerId === firstId && assignedIds.has(secondId)) ||
+    (playerId === secondId && assignedIds.has(firstId)),
+  );
+}
+
 export function validateUniqueIconIds(icons: IconPlayer[]): void {
   const duplicateIds = icons.filter((player, index) => icons.findIndex((candidate) => candidate.id === player.id) !== index);
   if (duplicateIds.length > 0) {
@@ -17,6 +26,7 @@ export function buildSquad(playerName: string, unavailable: Set<string>, formati
   for (const position of getPositionPlan(formation)) {
     const candidates = shuffle(icons.filter((player) =>
       !localIds.has(player.id) && !unavailable.has(player.id) &&
+      !violatesExclusivePair(player.id, localIds) &&
       (player.position === position || player.secondary?.includes(position)),
     ));
     const choice = candidates[0];
@@ -41,6 +51,7 @@ export function generateTournament(participants: string[], formations: Formation
   validateUniqueIconIds(icons);
   const squads = participants.map((playerName) => ({ playerName, players: [], revealed: false })) as Squad[];
   const used = new Set<string>();
+  const participantIds = participants.map(() => new Set<string>());
   const ratingTotals = participants.map(() => 0);
   const positionPlans = formations.map(getPositionPlan);
 
@@ -49,6 +60,7 @@ export function generateTournament(participants: string[], formations: Formation
       const position = positionPlans[index][round];
       const candidates = icons.filter((player) =>
         !used.has(player.id) &&
+        !violatesExclusivePair(player.id, participantIds[index]) &&
         (player.position === position || player.secondary?.includes(position)),
       );
       const choice = candidates.length > 0
@@ -57,6 +69,7 @@ export function generateTournament(participants: string[], formations: Formation
       if (!choice) throw new Error(`Not enough available ICONs for ${position} while building ${participants[index]}'s squad.`);
       squads[index].players.push({ ...choice, position });
       used.add(choice.id);
+      participantIds[index].add(choice.id);
       ratingTotals[index] += choice.rating;
     }
   }

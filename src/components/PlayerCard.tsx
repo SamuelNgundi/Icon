@@ -1,4 +1,6 @@
 import type { IconPlayer } from '../data/icons';
+import { useState } from 'react';
+import { getPlayerCardImageUrl } from '../utils/imageAssets';
 
 function Flag({ code }: { code: string }) {
   const normalizedCode = code.trim().toUpperCase();
@@ -9,13 +11,11 @@ function Flag({ code }: { code: string }) {
 }
 
 export default function PlayerCard({ player, onClick, small = false }: { player: IconPlayer; onClick?: () => void; small?: boolean }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
   return (
-    <button className={`player-card ${small ? 'player-card--small' : ''}`} onClick={onClick} style={{ ['--delay' as string]: `${(player.id.length % 8) * 0.04}s` }}>
-      <img className="card-frame" src="/icon-card-frame.png" alt="" />
-      <div className="card-glow" />
-      <div className="card-top"><span className="card-pos">{player.position}</span></div>
-      <div className="player-art"><div className="silhouette"><span className="player-name">{player.name}</span></div><span className="card-nation"><Flag code={player.nationCode} /></span></div>
-      <div className="card-info"><span>ICON <i>◆</i></span><small>{player.nation}</small></div>
+    <button className={`player-card ${small ? 'player-card--small' : ''}`} onClick={onClick} aria-label={`View ${player.name} ICON card`} style={{ ['--delay' as string]: `${(player.id.length % 8) * 0.04}s` }}>
+      {!imageFailed ? <img className="player-card-image" src={getPlayerCardImageUrl(player.id)} alt={`${player.name} ICON card`} onError={() => setImageFailed(true)} /> : <span className="player-card-fallback">ICON<br />CARD</span>}
     </button>
   );
 }

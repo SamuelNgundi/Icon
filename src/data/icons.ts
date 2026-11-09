@@ -23,6 +23,8 @@ export const ICONS_BY_POSITION = {
     {"id":"koeman","name":"Koeman","rating":88,"position":"CB","nation":"Netherlands","nationCode":"NL","secondary":[]},
     {"id":"baresi","name":"Baresi","rating":89,"position":"CB","nation":"Italy","nationCode":"IT","secondary":[]},
     {"id":"blanc","name":"Blanc","rating":88,"position":"CB","nation":"France","nationCode":"FR","secondary":[]},
+    {"id":"stam","name":"Stam","rating":87,"position":"CB","nation":"Netherlands","nationCode":"NL","secondary":[]},
+    {"id":"lucio","name":"Lúcio","rating":89,"position":"CB","nation":"Brazil","nationCode":"BR","secondary":[]},
   ],
   LB: [
     {"id":"roberto-carlos","name":"Roberto Carlos","rating":94,"position":"LB","nation":"Brazil","nationCode":"BR"},
@@ -72,6 +74,8 @@ export const ICONS_BY_POSITION = {
     {"id":"ginola","name":"Ginola","rating":89,"position":"LW","nation":"France","nationCode":"FR","secondary":[]},
     {"id":"barnes","name":"John Barnes","rating":87,"position":"LW","nation":"England","nationCode":"GB","secondary":[]},
     {"id":"rivellino","name":"Rivellino","rating":88,"position":"LW","nation":"Brazil","nationCode":"BR","secondary":[]},
+    {"id":"abedi-pele","name":"Abedi Pelé","rating":89,"position":"LW","nation":"Ghana","nationCode":"GH","secondary":["CAM"]},
+    {"id":"futre","name":"Paulo Futre","rating":87,"position":"LW","nation":"Portugal","nationCode":"PT","secondary":["RW"]},
   ],
   RW: [
     {"id":"figo","name":"Figo","rating":92,"position":"RW","nation":"Portugal","nationCode":"PT","secondary":[]},
@@ -81,6 +85,7 @@ export const ICONS_BY_POSITION = {
     {"id":"beckham","name":"Beckham","rating":88,"position":"RW","nation":"England","nationCode":"GB","secondary":[]},
     {"id":"cha","name":"Cha Bum-kun","rating":88,"position":"RW","nation":"Korea","nationCode":"KR","secondary":[]},
     {"id":"owairan","name":"Al Owairan","rating":86,"position":"RW","nation":"Saudi Arabia","nationCode":"SA","secondary":[]},
+    {"id":"okocha","name":"Okocha","rating":88,"position":"RW","nation":"Nigeria","nationCode":"NG","secondary":["CAM"]},
   ],
   ST: [
     {"id":"ronaldo","name":"Ronaldo","rating":96,"position":"ST","nation":"Brazil","nationCode":"BR"},

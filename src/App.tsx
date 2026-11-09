@@ -13,6 +13,7 @@ import PlayerModal from './components/PlayerModal';
 import Home from './sections/Home';
 import TournamentSetup from './sections/TournamentSetup';
 import TournamentHistory from './sections/TournamentHistory';
+import { useImagePreloader } from './hooks/useImagePreloader';
 
 type Screen = 'home' | 'setup' | 'reveal' | 'dashboard' | 'database' | 'history';
 
@@ -44,6 +45,7 @@ function App() {
   const [historyPosition, setHistoryPosition] = useState<Position | 'ALL'>('ALL');
   const [allocationError, setAllocationError] = useState('');
   const [persistenceError, setPersistenceError] = useState('');
+  useImagePreloader(icons);
 
   useEffect(() => {
     try {
