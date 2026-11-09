@@ -16,6 +16,18 @@ import TournamentHistory from './sections/TournamentHistory';
 import { useImagePreloader } from './hooks/useImagePreloader';
 
 type Screen = 'home' | 'setup' | 'reveal' | 'dashboard' | 'database' | 'history';
+type AppHistoryState = { screen: Screen; collectionView: boolean };
+const APP_HISTORY_KEY = 'fc26Draft';
+const APP_SCREENS: Screen[] = ['home', 'setup', 'reveal', 'dashboard', 'database', 'history'];
+
+function readAppHistoryState(state: unknown): AppHistoryState | undefined {
+  if (!state || typeof state !== 'object') return undefined;
+  const appState = (state as Record<string, unknown>)[APP_HISTORY_KEY];
+  if (!appState || typeof appState !== 'object') return undefined;
+  const { screen, collectionView } = appState as Record<string, unknown>;
+  if (typeof screen !== 'string' || !APP_SCREENS.includes(screen as Screen) || typeof collectionView !== 'boolean') return undefined;
+  return { screen: screen as Screen, collectionView };
+}
 
 const STORAGE_KEY = 'fc26-icon-draft-tournament';
 const ICON_DATABASE_KEY = 'fc26-icon-draft-icons';
@@ -24,7 +36,7 @@ const HISTORY_KEY = 'fc26-icon-draft-history';
 const positionLabel: Record<Position, string> = { GK: 'Goalkeeper', CB: 'Centre Back', LB: 'Left Back', RB: 'Right Back', CDM: 'Defensive Mid', CM: 'Centre Mid', CAM: 'Attacking Mid', LW: 'Left Wing', RW: 'Right Wing', ST: 'Striker' };
 
 function App() {
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreenState] = useState<Screen>('home');
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participantCount, setParticipantCount] = useState(4);
   const [formations, setFormations] = useState<Formation[]>(['wide', 'wide', 'wide', 'wide']);
@@ -47,6 +59,60 @@ function App() {
   const [persistenceError, setPersistenceError] = useState('');
   useImagePreloader(icons);
 
+  function navigateToScreen(nextScreen: Screen, replace = false) {
+    const appState: AppHistoryState = { screen: nextScreen, collectionView: false };
+    const currentAppState = readAppHistoryState(window.history.state);
+    if (!replace && currentAppState?.screen === nextScreen && !currentAppState.collectionView) {
+      setScreenState(nextScreen);
+      setCollectionView(false);
+      return;
+    }
+    const nextHistoryState = { ...window.history.state, [APP_HISTORY_KEY]: appState };
+    if (replace) window.history.replaceState(nextHistoryState, '', window.location.href);
+    else window.history.pushState(nextHistoryState, '', window.location.href);
+    setScreenState(nextScreen);
+    setCollectionView(false);
+  }
+
+  function navigateDashboardView(nextCollectionView: boolean, replace = false) {
+    if (collectionView === nextCollectionView) return;
+    const appState: AppHistoryState = { screen: 'dashboard', collectionView: nextCollectionView };
+    const nextHistoryState = { ...window.history.state, [APP_HISTORY_KEY]: appState };
+    if (replace) window.history.replaceState(nextHistoryState, '', window.location.href);
+    else window.history.pushState(nextHistoryState, '', window.location.href);
+    setCollectionView(nextCollectionView);
+  }
+
+  useEffect(() => {
+    const existingAppState = readAppHistoryState(window.history.state);
+    if (!existingAppState) {
+      window.history.replaceState(
+        { ...window.history.state, [APP_HISTORY_KEY]: { screen: 'home', collectionView: false } satisfies AppHistoryState },
+        '',
+        window.location.href,
+      );
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const appState = readAppHistoryState(event.state);
+      if (!appState) {
+        setScreenState('home');
+        setCollectionView(false);
+        return;
+      }
+      if (appState.screen === 'dashboard' && !tournament) {
+        setScreenState('home');
+        setCollectionView(false);
+        return;
+      }
+      setScreenState(appState.screen);
+      setCollectionView(appState.screen === 'dashboard' && appState.collectionView);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [tournament]);
+
   useEffect(() => {
     try {
       const savedIcons = readStored<IconPlayer[]>(ICON_DATABASE_KEY);
@@ -57,7 +123,7 @@ function App() {
       if (saved?.squads?.length) {
         const savedFormations = saved.formations ?? saved.squads.map(() => saved.formation ?? 'wide');
         setTournament({ ...saved, id: saved.id ?? `legacy-${saved.createdAt}`, formations: savedFormations });
-        setScreen('dashboard');
+        navigateToScreen('dashboard');
       }
     } catch {
       setPersistenceError('Saved application data could not be loaded. Start with a new tournament or restore a valid backup.');
@@ -83,7 +149,7 @@ function App() {
   }, [history]);
 
   const activeSquad = tournament?.squads[activeParticipant];
-  function startSetup() { setNames(Array.from({ length: participantCount }, () => '')); setFormations(Array.from({ length: participantCount }, () => 'wide')); setScreen('setup'); }
+  function startSetup() { setNames(Array.from({ length: participantCount }, () => '')); setFormations(Array.from({ length: participantCount }, () => 'wide')); navigateToScreen('setup'); }
   function updateCount(count: number) { setParticipantCount(count); setNames((current) => Array.from({ length: count }, (_, index) => current[index] ?? '')); setFormations((current) => Array.from({ length: count }, (_, index) => current[index] ?? 'wide')); }
   function generate() {
     if (names.some((name) => !name.trim())) return;
@@ -91,14 +157,14 @@ function App() {
       const next = generateTournament(names.map((name) => name.trim()), formations, icons);
       const assignments = next.squads.flatMap((squad) => squad.players.map((player, index) => ({ id: `${next.id}-${squad.playerName}-${index}`, tournamentId: next.id, participantName: squad.playerName, player: { ...player }, assignedPosition: player.position, timestamp: Date.now() + index, round: 1 })));
       setHistory((current) => [{ id: next.id, createdAt: next.createdAt, participants: next.participants, assignments, status: 'active' }, ...current]);
-      setTournament(next); setAllocationError(''); setActiveParticipant(0); setRevealIndex(0); setScreen('reveal');
+      setTournament(next); setAllocationError(''); setActiveParticipant(0); setRevealIndex(0); navigateToScreen('reveal');
     } catch (error) {
       setAllocationError(error instanceof Error ? error.message : 'Unable to allocate a unique squad. Add more eligible ICONs and try again.');
     }
   }
   function resetTournament() {
     if (tournament) setHistory((current) => current.map((record) => record.id === tournament.id ? { ...record, status: 'reset' } : record));
-    localStorage.removeItem(STORAGE_KEY); setTournament(null); setScreen('home'); setActiveParticipant(0);
+    localStorage.removeItem(STORAGE_KEY); setTournament(null); navigateToScreen('home', true); setActiveParticipant(0);
   }
   function redrawSquad(index: number) {
     if (!tournament) return;
@@ -155,7 +221,7 @@ function App() {
     if (!tournament) return;
     if (revealIndex < 10) { setRevealIndex((index) => index + 1); return; }
     if (activeParticipant < tournament.squads.length - 1) { setActiveParticipant((index) => index + 1); setRevealIndex(0); return; }
-    setScreen('dashboard');
+    navigateToScreen('dashboard');
   }
   function revealAll() {
     setRevealIndex(10);
@@ -173,19 +239,19 @@ function App() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
   }
 
-  if (screen === 'home') return <Home onStart={startSetup} onOpenDatabase={() => setScreen('database')} onOpenHistory={() => setScreen('history')} />;
+  if (screen === 'home') return <Home onStart={startSetup} onOpenDatabase={() => navigateToScreen('database')} onOpenHistory={() => navigateToScreen('history')} />;
 
-  if (screen === 'setup') return <TournamentSetup participantCount={participantCount} names={names} formations={formations} allocationError={allocationError} persistenceError={persistenceError} onBack={() => setScreen('home')} onCountChange={updateCount} onNameChange={(index, value) => setNames((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onFormationChange={(index, formation) => setFormations((current) => current.map((item, itemIndex) => itemIndex === index ? formation : item))} onGenerate={generate} />;
+  if (screen === 'setup') return <TournamentSetup participantCount={participantCount} names={names} formations={formations} allocationError={allocationError} persistenceError={persistenceError} onBack={() => navigateToScreen('home')} onCountChange={updateCount} onNameChange={(index, value) => setNames((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onFormationChange={(index, formation) => setFormations((current) => current.map((item, itemIndex) => itemIndex === index ? formation : item))} onGenerate={generate} />;
 
   if (screen === 'database') return (
-    <main className="app-shell database-screen"><div className="noise" /><nav className="top-nav"><button className="back-button" onClick={() => setScreen('home')}><ArrowLeft size={17} /> BACK</button><Logo /><span className="nav-status">ICON DATABASE / ADMIN</span></nav>
+    <main className="app-shell database-screen"><div className="noise" /><nav className="top-nav"><button className="back-button" onClick={() => navigateToScreen('home')}><ArrowLeft size={17} /> BACK</button><Logo /><span className="nav-status">ICON DATABASE / ADMIN</span></nav>
       <section className="database-content">{databaseError && <div className="allocation-error" role="alert">{databaseError}</div>}<header className="database-heading"><div><span className="eyebrow"><Shield size={14} /> ICON DATABASE</span><h2>THE <em>LEGENDS</em> ARCHIVE</h2><p>{icons.length} available ICONs. <span className="database-save-status"><span className="status-dot" /> AUTO-SAVED LOCALLY</span></p></div><div className="database-actions"><button className="secondary-button" onClick={exportIconDatabase}><Download size={16} /> EXPORT icons.ts</button><button className="primary-button" onClick={() => { setDatabaseError(''); openIconEditor(); }}><Sparkles size={16} /> ADD NEW ICON</button></div></header>
         <div className="icon-groups">{(Object.keys(positionLabel) as Position[]).filter((position) => position !== 'CM').map((position) => <section className="icon-group" key={position}><div className="icon-group-heading"><h3>{position} <span>{positionLabel[position]}</span></h3><small>{icons.filter((player) => player.position === position).length} ICONS</small></div><div className="icon-admin-grid">{icons.filter((player) => player.position === position).map((player) => <article className="icon-admin-card" key={player.id}><div><strong>{player.name}</strong><span>{player.nation} <Flag code={player.nationCode} /></span><small>SECONDARY: {player.secondary?.join(', ') || 'NONE'}</small></div><div className="icon-admin-actions"><button onClick={() => openIconEditor(player)} title={`Edit ${player.name}`}><LayoutGrid size={15} /> EDIT</button><button className="delete-icon-button" onClick={() => setConfirmation({ type: 'delete', player })} title={`Delete ${player.name}`}><X size={15} /> DELETE</button></div></article>)}</div></section>)}</div>
       </section>{iconEditorOpen ? <IconEditorModal icon={iconForm} isEditing={Boolean(editingIcon)} onChange={setIconForm} onSave={saveIcon} onDelete={deleteIcon} onClose={() => { setIconEditorOpen(false); setEditingIcon(null); }} /> : null}{confirmation && <ConfirmationModal confirmation={confirmation} participantName={confirmation.type === 'redraw' ? tournament?.participants[confirmation.index] : undefined} onConfirm={confirmAction} onClose={() => setConfirmation(null)} />}
     </main>
   );
 
-  if (screen === 'history') return <TournamentHistory history={history} searchValue={historySearch} position={historyPosition} selectedPlayer={selectedPlayer} onSearchChange={setHistorySearch} onPositionChange={setHistoryPosition} onSelectPlayer={setSelectedPlayer} onClosePlayer={() => setSelectedPlayer(null)} onBack={() => setScreen(tournament ? 'dashboard' : 'home')} />;
+  if (screen === 'history') return <TournamentHistory history={history} searchValue={historySearch} position={historyPosition} selectedPlayer={selectedPlayer} onSearchChange={setHistorySearch} onPositionChange={setHistoryPosition} onSelectPlayer={setSelectedPlayer} onClosePlayer={() => setSelectedPlayer(null)} onBack={() => navigateToScreen(tournament ? 'dashboard' : 'home')} />;
 
   if (screen === 'reveal' && tournament && activeSquad) return (
     <main className="app-shell reveal-screen"><div className="noise" /><nav className="top-nav"><Logo /><span className="nav-status">DRAFT IN PROGRESS / {activeParticipant + 1} OF {tournament.squads.length}</span><button className="icon-button" onClick={toggleFullscreen} title="Fullscreen"><Maximize size={18} /></button></nav>
@@ -196,10 +262,10 @@ function App() {
 
   if (!tournament || !activeSquad) return null;
   return (
-    <main className={`app-shell dashboard-screen ${collectionView ? 'collection-mode' : ''} ${isFullscreen ? 'presentation-mode' : ''}`}><div className="noise" /><nav className="top-nav"><Logo /><span className="nav-status"><span className="status-dot" /> TOURNAMENT HUB</span><div className="nav-actions"><button className="text-button" onClick={() => setScreen('history')}><RotateCcw size={16} /> HISTORY</button><button className="text-button" onClick={toggleFullscreen}><Expand size={16} /> {isFullscreen ? 'EXIT' : 'PRESENT'}</button><button className="text-button danger" onClick={() => setConfirmation({ type: 'reset' })}><RotateCcw size={16} /> RESET</button></div></nav>
+    <main className={`app-shell dashboard-screen ${collectionView ? 'collection-mode' : ''} ${isFullscreen ? 'presentation-mode' : ''}`}><div className="noise" /><nav className="top-nav"><Logo /><span className="nav-status"><span className="status-dot" /> TOURNAMENT HUB</span><div className="nav-actions"><button className="text-button" onClick={() => navigateToScreen('history')}><RotateCcw size={16} /> HISTORY</button><button className="text-button" onClick={toggleFullscreen}><Expand size={16} /> {isFullscreen ? 'EXIT' : 'PRESENT'}</button><button className="text-button danger" onClick={() => setConfirmation({ type: 'reset' })}><RotateCcw size={16} /> RESET</button></div></nav>
       <section className="dashboard-content"><header className="dashboard-heading"><div><span className="eyebrow"><Trophy size={14} /> TOURNAMENT OVERVIEW</span><h2>THE <em>LEGENDS</em> LEAGUE</h2><p>{tournament.participants.length} captains. {tournament.squads.length * 10} ICONS drafted. One legacy.</p></div></header>
-        <div className="participant-tabs">{tournament.squads.map((squad, index) => <button key={squad.playerName} className={activeParticipant === index ? 'active' : ''} onClick={() => { setActiveParticipant(index); setCollectionView(false); }}><span className="tab-number">0{index + 1}</span><span>{squad.playerName}</span></button>)}</div>
-        <div className="squad-toolbar"><div><h3>{activeSquad.playerName}'S SQUAD</h3><span><span className="status-dot" /> 10 ICONS SELECTED</span></div><div className="toolbar-actions"><button className={collectionView ? 'view-button' : 'view-button active'} onClick={() => setCollectionView(false)}><LayoutGrid size={17} /> PITCH</button><button className={collectionView ? 'view-button active' : 'view-button'} onClick={() => setCollectionView(true)}><Grid3X3 size={17} /> COLLECTION</button><button className="view-button" onClick={() => exportSquad(activeSquad)}><Download size={17} /> EXPORT</button><button className="view-button" onClick={() => setConfirmation({ type: 'redraw', index: activeParticipant })}><RotateCcw size={17} /> REDRAW</button></div></div>
+        <div className="participant-tabs">{tournament.squads.map((squad, index) => <button key={squad.playerName} className={activeParticipant === index ? 'active' : ''} onClick={() => { setActiveParticipant(index); navigateDashboardView(false, true); }}><span className="tab-number">0{index + 1}</span><span>{squad.playerName}</span></button>)}</div>
+        <div className="squad-toolbar"><div><h3>{activeSquad.playerName}'S SQUAD</h3><span><span className="status-dot" /> 10 ICONS SELECTED</span></div><div className="toolbar-actions"><button className={collectionView ? 'view-button' : 'view-button active'} onClick={() => navigateDashboardView(false)}><LayoutGrid size={17} /> PITCH</button><button className={collectionView ? 'view-button active' : 'view-button'} onClick={() => navigateDashboardView(true)}><Grid3X3 size={17} /> COLLECTION</button><button className="view-button" onClick={() => exportSquad(activeSquad)}><Download size={17} /> EXPORT</button><button className="view-button" onClick={() => setConfirmation({ type: 'redraw', index: activeParticipant })}><RotateCcw size={17} /> REDRAW</button></div></div>
         {collectionView ? <div className="collection-grid">{activeSquad.players.map((player) => <PlayerCard key={`${player.id}-${player.position}`} player={player} onClick={() => setSelectedPlayer(player)} />)}</div> : <Pitch players={activeSquad.players} formation={tournament.formations[activeParticipant]} onSelect={setSelectedPlayer} />}
         <div className="comparison-strip"><div><Shield size={18} /><span>ALL SQUADS SAVED LOCALLY<br /><small>Progress persists after refresh</small></span></div><div className="comparison-ratings">{tournament.squads.map((squad) => <span key={squad.playerName}>{squad.playerName} / 10 ICONS</span>)}</div></div>
       </section>{selectedPlayer && <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />}{confirmation && <ConfirmationModal confirmation={confirmation} participantName={confirmation.type === 'redraw' ? tournament.participants[confirmation.index] : undefined} onConfirm={confirmAction} onClose={() => setConfirmation(null)} />}
