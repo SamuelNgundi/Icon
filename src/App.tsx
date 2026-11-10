@@ -30,7 +30,6 @@ function readAppHistoryState(state: unknown): AppHistoryState | undefined {
 }
 
 const STORAGE_KEY = 'fc26-icon-draft-tournament';
-const ICON_DATABASE_KEY = 'fc26-icon-draft-icons';
 const HISTORY_KEY = 'fc26-icon-draft-history';
 
 const positionLabel: Record<Position, string> = { GK: 'Goalkeeper', CB: 'Centre Back', LB: 'Left Back', RB: 'Right Back', CDM: 'Defensive Mid', CM: 'Centre Mid', CAM: 'Attacking Mid', LW: 'Left Wing', RW: 'Right Wing', ST: 'Striker' };
@@ -115,10 +114,8 @@ function App() {
 
   useEffect(() => {
     try {
-      const savedIcons = readStored<IconPlayer[]>(ICON_DATABASE_KEY);
       const savedHistory = readStored<TournamentRecord[]>(HISTORY_KEY);
       const saved = readStored<(Tournament & { formation?: Formation })>(STORAGE_KEY);
-      if (savedIcons) setIcons(savedIcons);
       if (savedHistory) setHistory(savedHistory);
       if (saved?.squads?.length) {
         const savedFormations = saved.formations ?? saved.squads.map(() => saved.formation ?? 'wide');
@@ -139,10 +136,6 @@ function App() {
     try { writeStored(STORAGE_KEY, tournament); setPersistenceError(''); }
     catch { setPersistenceError('Tournament progress could not be saved in this browser.'); }
   }, [tournament]);
-  useEffect(() => {
-    try { writeStored(ICON_DATABASE_KEY, icons); setPersistenceError(''); }
-    catch { setPersistenceError('ICON database changes could not be saved in this browser.'); }
-  }, [icons]);
   useEffect(() => {
     try { writeStored(HISTORY_KEY, history); setPersistenceError(''); }
     catch { setPersistenceError('Draft history could not be saved in this browser.'); }
