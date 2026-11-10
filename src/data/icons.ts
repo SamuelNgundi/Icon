@@ -33,7 +33,7 @@ export const ICONS_BY_POSITION = {
     {"id":"petit","name":"Petit","rating":87,"position":"LB","nation":"France","nationCode":"FR","secondary":[]},
     {"id":"zambrotta","name":"Zambrotta","rating":86,"position":"LB","nation":"Italy","nationCode":"IT","secondary":[]},
     {"id":"capdevila","name":"Capdevila","rating":86,"position":"LB","nation":"Spain","nationCode":"ES","secondary":[]},
-    {"id":"lizarazu","name":"Lizarazu","rating":83,"position":"LB","nation":"France","nationCode":"FR","secondary":[]},
+    {"id":"lizarazu","name":"Lizarazu","rating":84,"position":"LB","nation":"France","nationCode":"FR","secondary":[]},
   ],
   RB: [
     {"id":"puyol","name":"Carles Puyol","rating":89,"position":"RB","nation":"Spain","nationCode":"ES","secondary":[]},
