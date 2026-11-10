@@ -6,7 +6,7 @@ import {
 import { ICONS, type IconPlayer, type Position } from './data/icons';
 import type { Assignment, Confirmation, Formation, Squad, Tournament, TournamentRecord } from './types';
 import { buildSquad, generateTournament } from './utils/playerAllocation';
-import { readStored, writeStored } from './utils/storage';
+import { createBackup, isTournament, isTournamentHistory, parseBackup, persistBackup, readStored, writeStored } from './utils/storage';
 import PlayerCard, { Flag } from './components/PlayerCard';
 import Pitch from './components/Pitch';
 import PlayerModal from './components/PlayerModal';
@@ -14,35 +14,21 @@ import Home from './sections/Home';
 import TournamentSetup from './sections/TournamentSetup';
 import TournamentHistory from './sections/TournamentHistory';
 import { useImagePreloader } from './hooks/useImagePreloader';
-
-type Screen = 'home' | 'setup' | 'reveal' | 'dashboard' | 'database' | 'history';
-type AppHistoryState = { screen: Screen; collectionView: boolean };
-const APP_HISTORY_KEY = 'fc26Draft';
-const APP_SCREENS: Screen[] = ['home', 'setup', 'reveal', 'dashboard', 'database', 'history'];
-
-function readAppHistoryState(state: unknown): AppHistoryState | undefined {
-  if (!state || typeof state !== 'object') return undefined;
-  const appState = (state as Record<string, unknown>)[APP_HISTORY_KEY];
-  if (!appState || typeof appState !== 'object') return undefined;
-  const { screen, collectionView } = appState as Record<string, unknown>;
-  if (typeof screen !== 'string' || !APP_SCREENS.includes(screen as Screen) || typeof collectionView !== 'boolean') return undefined;
-  return { screen: screen as Screen, collectionView };
-}
+import { useAppNavigation } from './hooks/useAppNavigation';
 
 const STORAGE_KEY = 'fc26-icon-draft-tournament';
 const HISTORY_KEY = 'fc26-icon-draft-history';
+const MAX_BACKUP_SIZE = 20 * 1024 * 1024;
 
 const positionLabel: Record<Position, string> = { GK: 'Goalkeeper', CB: 'Centre Back', LB: 'Left Back', RB: 'Right Back', CDM: 'Defensive Mid', CM: 'Centre Mid', CAM: 'Attacking Mid', LW: 'Left Wing', RW: 'Right Wing', ST: 'Striker' };
 
 function App() {
-  const [screen, setScreenState] = useState<Screen>('home');
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participantCount, setParticipantCount] = useState(4);
   const [formations, setFormations] = useState<Formation[]>(['wide', 'wide', 'wide', 'wide']);
   const [names, setNames] = useState<string[]>(['', '', '', '']);
   const [activeParticipant, setActiveParticipant] = useState(0);
   const [revealIndex, setRevealIndex] = useState(0);
-  const [collectionView, setCollectionView] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<IconPlayer | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
@@ -56,71 +42,19 @@ function App() {
   const [historyPosition, setHistoryPosition] = useState<Position | 'ALL'>('ALL');
   const [allocationError, setAllocationError] = useState('');
   const [persistenceError, setPersistenceError] = useState('');
+  const [backupStatus, setBackupStatus] = useState<{ message: string; kind: 'success' | 'error' } | null>(null);
+  const { screen, collectionView, navigateToScreen, navigateDashboardView, restoreDashboard } = useAppNavigation(Boolean(tournament));
   useImagePreloader(icons);
-
-  function navigateToScreen(nextScreen: Screen, replace = false) {
-    const appState: AppHistoryState = { screen: nextScreen, collectionView: false };
-    const currentAppState = readAppHistoryState(window.history.state);
-    if (!replace && currentAppState?.screen === nextScreen && !currentAppState.collectionView) {
-      setScreenState(nextScreen);
-      setCollectionView(false);
-      return;
-    }
-    const nextHistoryState = { ...window.history.state, [APP_HISTORY_KEY]: appState };
-    if (replace) window.history.replaceState(nextHistoryState, '', window.location.href);
-    else window.history.pushState(nextHistoryState, '', window.location.href);
-    setScreenState(nextScreen);
-    setCollectionView(false);
-  }
-
-  function navigateDashboardView(nextCollectionView: boolean, replace = false) {
-    if (collectionView === nextCollectionView) return;
-    const appState: AppHistoryState = { screen: 'dashboard', collectionView: nextCollectionView };
-    const nextHistoryState = { ...window.history.state, [APP_HISTORY_KEY]: appState };
-    if (replace) window.history.replaceState(nextHistoryState, '', window.location.href);
-    else window.history.pushState(nextHistoryState, '', window.location.href);
-    setCollectionView(nextCollectionView);
-  }
-
-  useEffect(() => {
-    const existingAppState = readAppHistoryState(window.history.state);
-    if (!existingAppState) {
-      window.history.replaceState(
-        { ...window.history.state, [APP_HISTORY_KEY]: { screen: 'home', collectionView: false } satisfies AppHistoryState },
-        '',
-        window.location.href,
-      );
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      const appState = readAppHistoryState(event.state);
-      if (!appState) {
-        setScreenState('home');
-        setCollectionView(false);
-        return;
-      }
-      if (appState.screen === 'dashboard' && !tournament) {
-        setScreenState('home');
-        setCollectionView(false);
-        return;
-      }
-      setScreenState(appState.screen);
-      setCollectionView(appState.screen === 'dashboard' && appState.collectionView);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [tournament]);
 
   useEffect(() => {
     try {
-      const savedHistory = readStored<TournamentRecord[]>(HISTORY_KEY);
-      const saved = readStored<(Tournament & { formation?: Formation })>(STORAGE_KEY);
+      const savedHistory = readStored<TournamentRecord[]>(HISTORY_KEY, isTournamentHistory);
+      const saved = readStored<Tournament & { formation?: Formation }>(STORAGE_KEY, isTournament);
       if (savedHistory) setHistory(savedHistory);
       if (saved?.squads?.length) {
         const savedFormations = saved.formations ?? saved.squads.map(() => saved.formation ?? 'wide');
         setTournament({ ...saved, id: saved.id ?? `legacy-${saved.createdAt}`, formations: savedFormations });
-        navigateToScreen('dashboard');
+        restoreDashboard();
       }
     } catch {
       setPersistenceError('Saved application data could not be loaded. Start with a new tournament or restore a valid backup.');
@@ -214,6 +148,11 @@ function App() {
     if (!tournament) return;
     if (revealIndex < 10) { setRevealIndex((index) => index + 1); return; }
     if (activeParticipant < tournament.squads.length - 1) { setActiveParticipant((index) => index + 1); setRevealIndex(0); return; }
+    setHistory((current) => current.map((record) =>
+      record.id === tournament.id && record.status === 'active'
+        ? { ...record, status: 'completed' }
+        : record,
+    ));
     navigateToScreen('dashboard');
   }
   function revealAll() {
@@ -228,6 +167,45 @@ function App() {
     const text = `export type Position = 'GK' | 'CB' | 'LB' | 'RB' | 'CDM' | 'CM' | 'CAM' | 'LW' | 'RW' | 'ST';\n\nexport type IconPlayer = { id: string; name: string; rating: number; position: Position; nation: string; nationCode: string; secondary?: Position[] };\n\nexport const ICONS_BY_POSITION = {\n${groups}\n};\n\nexport const ICONS: IconPlayer[] = Object.values(ICONS_BY_POSITION).flat();\n`;
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); link.download = 'icons.ts'; link.click(); URL.revokeObjectURL(link.href);
   }
+  function exportBackup() {
+    const backup = createBackup(tournament, history);
+    const filename = `fc26-icon-draft-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setBackupStatus({ message: 'Tournament and history backup exported.', kind: 'success' });
+  }
+  async function importBackup(file: File) {
+    setBackupStatus(null);
+    if (file.size > MAX_BACKUP_SIZE) {
+      setBackupStatus({ message: 'Backup file is too large. Maximum size is 20 MB.', kind: 'error' });
+      return;
+    }
+
+    try {
+      const backup = parseBackup(await file.text());
+      const confirmed = window.confirm(
+        `Import ${backup.history.length} tournament history record(s)${backup.tournament ? ' and replace the saved current tournament' : ' and clear the saved current tournament'}? This replaces the data currently stored in this browser.`,
+      );
+      if (!confirmed) return;
+
+      persistBackup(STORAGE_KEY, HISTORY_KEY, backup);
+      setTournament(backup.tournament);
+      setHistory(backup.history);
+      setActiveParticipant(0);
+      setRevealIndex(0);
+      setPersistenceError('');
+      setBackupStatus({ message: 'Backup imported successfully.', kind: 'success' });
+    } catch (error) {
+      setBackupStatus({
+        message: error instanceof Error ? error.message : 'Backup import failed. Existing data was not changed.',
+        kind: 'error',
+      });
+    }
+  }
   function toggleFullscreen() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
   }
@@ -238,13 +216,13 @@ function App() {
 
   if (screen === 'database') return (
     <main className="app-shell database-screen"><div className="noise" /><nav className="top-nav"><button className="back-button" onClick={() => navigateToScreen('home')}><ArrowLeft size={17} /> BACK</button><Logo /><span className="nav-status">ICON DATABASE / ADMIN</span></nav>
-      <section className="database-content">{databaseError && <div className="allocation-error" role="alert">{databaseError}</div>}<header className="database-heading"><div><span className="eyebrow"><Shield size={14} /> ICON DATABASE</span><h2>THE <em>LEGENDS</em> ARCHIVE</h2><p>{icons.length} available ICONs. <span className="database-save-status"><span className="status-dot" /> AUTO-SAVED LOCALLY</span></p></div><div className="database-actions"><button className="secondary-button" onClick={exportIconDatabase}><Download size={16} /> EXPORT icons.ts</button><button className="primary-button" onClick={() => { setDatabaseError(''); openIconEditor(); }}><Sparkles size={16} /> ADD NEW ICON</button></div></header>
+      <section className="database-content">{databaseError && <div className="allocation-error" role="alert">{databaseError}</div>}<header className="database-heading"><div><span className="eyebrow"><Shield size={14} /> ICON DATABASE</span><h2>THE <em>LEGENDS</em> ARCHIVE</h2><p>{icons.length} available ICONs. <span className="database-save-status"><span className="status-dot" /> SESSION EDITS / EXPORT TO KEEP</span></p></div><div className="database-actions"><button className="secondary-button" onClick={exportIconDatabase}><Download size={16} /> EXPORT icons.ts</button><button className="primary-button" onClick={() => { setDatabaseError(''); openIconEditor(); }}><Sparkles size={16} /> ADD NEW ICON</button></div></header>
         <div className="icon-groups">{(Object.keys(positionLabel) as Position[]).filter((position) => position !== 'CM').map((position) => <section className="icon-group" key={position}><div className="icon-group-heading"><h3>{position} <span>{positionLabel[position]}</span></h3><small>{icons.filter((player) => player.position === position).length} ICONS</small></div><div className="icon-admin-grid">{icons.filter((player) => player.position === position).map((player) => <article className="icon-admin-card" key={player.id}><div><strong>{player.name}</strong><span>{player.nation} <Flag code={player.nationCode} /></span><small>SECONDARY: {player.secondary?.join(', ') || 'NONE'}</small></div><div className="icon-admin-actions"><button onClick={() => openIconEditor(player)} title={`Edit ${player.name}`}><LayoutGrid size={15} /> EDIT</button><button className="delete-icon-button" onClick={() => setConfirmation({ type: 'delete', player })} title={`Delete ${player.name}`}><X size={15} /> DELETE</button></div></article>)}</div></section>)}</div>
       </section>{iconEditorOpen ? <IconEditorModal icon={iconForm} isEditing={Boolean(editingIcon)} onChange={setIconForm} onSave={saveIcon} onDelete={deleteIcon} onClose={() => { setIconEditorOpen(false); setEditingIcon(null); }} /> : null}{confirmation && <ConfirmationModal confirmation={confirmation} participantName={confirmation.type === 'redraw' ? tournament?.participants[confirmation.index] : undefined} onConfirm={confirmAction} onClose={() => setConfirmation(null)} />}
     </main>
   );
 
-  if (screen === 'history') return <TournamentHistory history={history} searchValue={historySearch} position={historyPosition} selectedPlayer={selectedPlayer} onSearchChange={setHistorySearch} onPositionChange={setHistoryPosition} onSelectPlayer={setSelectedPlayer} onClosePlayer={() => setSelectedPlayer(null)} onBack={() => navigateToScreen(tournament ? 'dashboard' : 'home')} />;
+  if (screen === 'history') return <TournamentHistory history={history} searchValue={historySearch} position={historyPosition} selectedPlayer={selectedPlayer} backupStatus={backupStatus} onExportBackup={exportBackup} onImportBackup={importBackup} onSearchChange={setHistorySearch} onPositionChange={setHistoryPosition} onSelectPlayer={setSelectedPlayer} onClosePlayer={() => setSelectedPlayer(null)} onBack={() => navigateToScreen(tournament ? 'dashboard' : 'home')} />;
 
   if (screen === 'reveal' && tournament && activeSquad) return (
     <main className="app-shell reveal-screen"><div className="noise" /><nav className="top-nav"><Logo /><span className="nav-status">DRAFT IN PROGRESS / {activeParticipant + 1} OF {tournament.squads.length}</span><button className="icon-button" onClick={toggleFullscreen} title="Fullscreen"><Maximize size={18} /></button></nav>

@@ -15,8 +15,9 @@ An offline tournament companion for drafting legendary football ICONs and buildi
 - Squad redraw and tournament reset controls
 - Themed confirmation dialogs
 - LocalStorage persistence across browser refreshes
+- Versioned JSON backup export/import for tournament progress and draft history
 - Squad export as a text file
-- ICON database edits automatically saved in browser LocalStorage
+- Temporary ICON database edits with source export
 - Fullscreen presentation mode
 - Responsive desktop and mobile layouts
 
@@ -58,13 +59,17 @@ Add players to the appropriate `ICONS_BY_POSITION` group for the starter databas
 - `nationCode`
 - Optional `secondary` eligible positions
 
-The in-app ICON Database editor is the recommended way to maintain the active database. Additions, edits, and deletions are automatically saved to browser LocalStorage and are used by future drafts. The numeric `rating` field remains available in the data model for future use, but ratings are not displayed in the current card interface.
+The bundled `src/data/icons.ts` file is the source of truth. In-app additions, edits, and deletions are temporary for the current page session. Use **EXPORT icons.ts** in the ICON Database screen, then update the bundled file to keep those changes after reload. The numeric `rating` field is used by draft fairness and elite-card effects.
+
+## Tournament backups
+
+Open **Draft History** and choose **EXPORT BACKUP** to download a versioned JSON backup containing the current tournament and full draft history. To restore it on this or another browser, choose **IMPORT BACKUP** and select the JSON file. The app validates the backup before writing anything and asks for confirmation because importing replaces the currently saved tournament and history. Existing unversioned LocalStorage records are validated and migrated the next time they are read.
 
 ## Card assets
 
-The supplied card frame is stored at:
-
-[`public/icon-card-frame.png`](./public/icon-card-frame.png)
+Player card images are stored in `public/player_cards/` and are loaded using
+their matching ICON database ID, for example `pele.webp` for the `pele` ID.
+When adding an ICON, add a matching WebP asset or the card will use its fallback.
 
 The favicon is stored at:
 
@@ -72,4 +77,4 @@ The favicon is stored at:
 
 ## Data and privacy
 
-The app is frontend-only and does not require accounts, authentication, or a backend. Tournament progress and ICON database edits are stored locally in the browser using LocalStorage. They remain available after refresh on the same browser/device, but are not shared across devices or browser profiles.
+The app is frontend-only and does not require accounts, authentication, or a backend. Tournament progress and draft history are stored locally in versioned LocalStorage records. They remain available after refresh on the same browser/device, but are not shared across devices or browser profiles unless you manually export and import a backup.

@@ -10,6 +10,7 @@ export const ICONS_BY_POSITION = {
     {"id":"vandersar","name":"van der Sar","rating":88,"position":"GK","nation":"Netherlands","nationCode":"NL","secondary":[]},
     {"id":"cech","name":"Petr Čech","rating":88,"position":"GK","nation":"Czechia","nationCode":"CZ","secondary":[]},
     {"id":"schmeichel","name":"Schmeichel","rating":89,"position":"GK","nation":"Denmark","nationCode":"DK","secondary":[]},
+    {"id":"buffon","name":"Buffon","rating":91,"position":"GK","nation":"Italy","nationCode":"IT","secondary":[]},
   ],
   CB: [
     {"id":"maldini","name":"Maldini","rating":92,"position":"CB","nation":"Italy","nationCode":"IT","secondary":[]},
@@ -25,6 +26,7 @@ export const ICONS_BY_POSITION = {
     {"id":"blanc","name":"Blanc","rating":88,"position":"CB","nation":"France","nationCode":"FR","secondary":[]},
     {"id":"stam","name":"Stam","rating":87,"position":"CB","nation":"Netherlands","nationCode":"NL","secondary":[]},
     {"id":"lucio","name":"Lúcio","rating":88,"position":"CB","nation":"Brazil","nationCode":"BR","secondary":[]},
+    {"id":"vidic","name":"Vidić","rating":87,"position":"CB","nation":"Serbia","nationCode":"RS","secondary":[]},
   ],
   LB: [
     {"id":"roberto-carlos","name":"Roberto Carlos","rating":90,"position":"LB","nation":"Brazil","nationCode":"BR"},
@@ -64,6 +66,7 @@ export const ICONS_BY_POSITION = {
     {"id":"zico","name":"Zico","rating":91,"position":"CAM","nation":"Brazil","nationCode":"BR","secondary":[]},
     {"id":"socrates","name":"Sócrates","rating":88,"position":"CAM","nation":"Brazil","nationCode":"BR","secondary":[]},
     {"id":"xavi","name":"Xavi","rating":91,"position":"CAM","nation":"Spain","nationCode":"ES","secondary":[]},
+    {"id":"charlton","name":"Bobby Charlton","rating":92,"position":"CAM","nation":"England","nationCode":"GB","secondary":[]},
   ],
   LW: [
     {"id":"rivaldo","name":"Rivaldo","rating":90,"position":"LW","nation":"Brazil","nationCode":"BR","secondary":[]},
@@ -76,6 +79,7 @@ export const ICONS_BY_POSITION = {
     {"id":"rivellino","name":"Rivellino","rating":88,"position":"LW","nation":"Brazil","nationCode":"BR","secondary":[]},
     {"id":"abedi-pele","name":"Abedi Pelé","rating":89,"position":"LW","nation":"Ghana","nationCode":"GH","secondary":["CAM"]},
     {"id":"futre","name":"Paulo Futre","rating":87,"position":"LW","nation":"Portugal","nationCode":"PT","secondary":["RW"]},
+    {"id":"nedved","name":"Nedvěd","rating":88,"position":"LW","nation":"Czech Republic","nationCode":"CZ","secondary":[]},
   ],
   RW: [
     {"id":"figo","name":"Figo","rating":92,"position":"RW","nation":"Portugal","nationCode":"PT","secondary":[]},

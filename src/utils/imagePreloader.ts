@@ -1,6 +1,8 @@
 import type { IconPlayer } from '../data/icons';
+import { PLAYER_CARD_ASSET_URLS } from 'virtual:player-card-assets';
 import { getPlayerCardImageUrl, HIGH_PRIORITY_IMAGE_URLS } from './imageAssets';
 
+// Keep in sync with CACHE_NAME in public/sw.js; bump both when card assets change.
 export const IMAGE_CACHE_NAME = 'fc26-images-v1';
 
 type PreloadPriority = 'high' | 'medium' | 'low';
@@ -20,10 +22,10 @@ function isConnectionConstrained(): boolean {
 }
 
 function scheduleIdle(callback: () => void): number {
-  if ('requestIdleCallback' in window) {
+  if (typeof window.requestIdleCallback === 'function') {
     return window.requestIdleCallback(callback, { timeout: 1500 });
   }
-  return globalThis.setTimeout(callback, 250);
+  return window.setTimeout(callback, 250);
 }
 
 async function cacheImage(url: string): Promise<boolean> {
@@ -44,10 +46,13 @@ async function cacheImage(url: string): Promise<boolean> {
 }
 
 function getTasks(icons: IconPlayer[]): ImageTask[] {
-  const playerUrls = [...new Set(icons.map((player) => getPlayerCardImageUrl(player.id)))];
+  const databaseUrls = new Set(icons.map((player) => getPlayerCardImageUrl(player.id)));
+  const databasePlayerUrls = [...databaseUrls];
+  const additionalPlayerUrls = PLAYER_CARD_ASSET_URLS.filter((url) => !databaseUrls.has(url));
   return [
     ...HIGH_PRIORITY_IMAGE_URLS.map((url) => ({ url, priority: 'high' as const })),
-    ...playerUrls.map((url) => ({ url, priority: 'medium' as const })),
+    ...databasePlayerUrls.map((url) => ({ url, priority: 'medium' as const })),
+    ...additionalPlayerUrls.map((url) => ({ url, priority: 'low' as const })),
   ];
 }
 
@@ -79,7 +84,7 @@ export function preloadImagesInBackground(icons: IconPlayer[]): () => void {
   return () => {
     cancelled = true;
     queued.clear();
-    if ('cancelIdleCallback' in window) window.cancelIdleCallback(idleHandle);
-    else globalThis.clearTimeout(idleHandle);
+    if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idleHandle);
+    else window.clearTimeout(idleHandle);
   };
 }

@@ -6,18 +6,34 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames
+      .filter((name) => name.startsWith('fc26-images-') && name !== CACHE_NAME)
+      .map((name) => caches.delete(name)));
+    await self.clients.claim();
+  })());
 });
 
-async function updateImage(request) {
-  const cache = await caches.open(CACHE_NAME);
+async function cacheFirst(request) {
+  let cache;
   try {
-    const response = await fetch(request);
-    if (response.ok) await cache.put(request, response.clone());
-    return response;
+    cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+    if (cached) return cached;
   } catch {
-    return (await cache.match(request)) || new Response('', { status: 503, statusText: 'Image unavailable' });
+    return fetch(request);
   }
+
+  const response = await fetch(request);
+  if (response.ok) {
+    try {
+      await cache.put(request, response.clone());
+    } catch (error) {
+      console.warn('Could not cache image response.', error);
+    }
+  }
+  return response;
 }
 
 self.addEventListener('fetch', (event) => {
@@ -25,13 +41,5 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || url.origin !== self.location.origin ||
       (!url.pathname.startsWith(IMAGE_PATH) && url.pathname !== '/favicon.svg')) return;
 
-  event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(event.request);
-    if (cached) {
-      event.waitUntil(updateImage(event.request));
-      return cached;
-    }
-    return updateImage(event.request);
-  })());
+  event.respondWith(cacheFirst(event.request));
 });
