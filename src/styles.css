@@ -33,3 +33,10 @@
 .pitch-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-items:center;justify-content:initial}
 .pitch-player{min-width:0}
 .pitch-player--centered{justify-self:center}
+
+.player-card--elite{position:relative;isolation:isolate}
+.player-card--elite:before{display:block;content:'';position:absolute;inset:-10% -12%;z-index:-1;border-radius:32%;background:conic-gradient(from 0deg,transparent 0deg,rgba(167,202,243,.08) 75deg,rgba(106,228,255,.34) 145deg,rgba(200,243,74,.16) 210deg,transparent 300deg);filter:blur(18px);opacity:.52;transform:scale(.98);animation:elite-card-shimmer 14s linear infinite;pointer-events:none}
+.player-card--elite:after{content:'';position:absolute;inset:0;z-index:2;clip-path:polygon(20% 0,80% 0,100% 100%,0 100%);background:linear-gradient(112deg,transparent 38%,rgba(255,255,255,.02) 44%,rgba(225,248,255,.2) 49%,rgba(255,255,255,.06) 53%,transparent 60%);background-size:230% 230%;background-position:140% 140%;animation:elite-light-sweep 3.6s linear infinite;pointer-events:none}
+@keyframes elite-card-shimmer{0%{transform:rotate(0deg) scale(.98);opacity:.15}50%{transform:rotate(180deg) scale(1.06);opacity:.6}100%{transform:rotate(360deg) scale(.98);opacity:.15}}
+@keyframes elite-light-sweep{0%{background-position:140% 140%;opacity:0}12%{opacity:.55}88%{background-position:-40% -40%;opacity:.55}100%{background-position:-40% -40%;opacity:0}}
+@media(prefers-reduced-motion:reduce){.player-card--elite:before,.player-card--elite:after{animation:none;opacity:.5;transform:scale(1.02)}}
