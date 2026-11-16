@@ -56,8 +56,13 @@
 .home-screen footer{border-top-color:rgba(220,246,255,.12);background:rgba(7,12,16,.25)}
 @media(max-width:700px){.home-screen .hero-copy{padding:25px 22px;border-radius:22px}.home-screen .hero-copy:before{border-radius:21px}.home-screen .hero-visual{opacity:.3}.home-screen .steps{gap:10px}.home-screen .step{min-height:0;padding:20px;border-radius:17px}}
 @media(prefers-reduced-motion:reduce){.home-screen .step{transition:none}.home-screen .step:hover{transform:none}}
+.reveal-cards{justify-content:flex-start;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain}
+.reveal-cards>:first-child{margin-inline-start:auto}
+.reveal-cards>:last-child{margin-inline-end:auto}
 
 .player-card--elite{position:relative;isolation:isolate}
+.player-card--elite .player-card-image{filter:drop-shadow(0 0 5px rgba(255,255,255,.32)) drop-shadow(0 0 11px rgba(255,255,255,.12))}
+.player-card--elite .player-card-fallback{filter:drop-shadow(0 0 5px rgba(255,255,255,.28))}
 .player-card--elite:before{display:block;content:'';position:absolute;inset:-10% -12%;z-index:-1;border-radius:32%;background:conic-gradient(from 0deg,transparent 0deg,rgba(167,202,243,.08) 75deg,rgba(106,228,255,.34) 145deg,rgba(200,243,74,.16) 210deg,transparent 300deg);filter:blur(18px);opacity:.52;transform:scale(.98);animation:elite-card-shimmer 14s linear infinite;pointer-events:none}
 .player-card--elite:after{content:'';position:absolute;inset:0;z-index:2;clip-path:polygon(20% 0,80% 0,100% 100%,0 100%);background:linear-gradient(112deg,transparent 38%,rgba(255,255,255,.02) 44%,rgba(225,248,255,.2) 49%,rgba(255,255,255,.06) 53%,transparent 60%);background-size:230% 230%;background-position:140% 140%;animation:elite-light-sweep 3.6s linear infinite;pointer-events:none}
 @keyframes elite-card-shimmer{0%{transform:rotate(0deg) scale(.98);opacity:.15}50%{transform:rotate(180deg) scale(1.06);opacity:.6}100%{transform:rotate(360deg) scale(.98);opacity:.15}}

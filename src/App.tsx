@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, ChevronRight, Download, Expand, Gamepad2, Grid3X3, LayoutGrid,
   Maximize, RotateCcw, Shield, Sparkles, Trophy, Users, X, Zap,
@@ -15,6 +15,8 @@ import TournamentSetup from './sections/TournamentSetup';
 import TournamentHistory from './sections/TournamentHistory';
 import { useImagePreloader } from './hooks/useImagePreloader';
 import { useAppNavigation } from './hooks/useAppNavigation';
+import { centerRevealCard } from './utils/revealScroll';
+import { useProgressiveReveal } from './hooks/useProgressiveReveal';
 
 const STORAGE_KEY = 'fc26-icon-draft-tournament';
 const HISTORY_KEY = 'fc26-icon-draft-history';
@@ -44,7 +46,34 @@ function App() {
   const [persistenceError, setPersistenceError] = useState('');
   const [backupStatus, setBackupStatus] = useState<{ message: string; kind: 'success' | 'error' } | null>(null);
   const { screen, collectionView, navigateToScreen, navigateDashboardView, restoreDashboard } = useAppNavigation(Boolean(tournament));
+  const { isRevealingAll, startRevealAll } = useProgressiveReveal(
+    revealIndex,
+    setRevealIndex,
+    screen === 'reveal',
+  );
+  const revealCardsRef = useRef<HTMLDivElement>(null);
+  const revealScrollFrameRef = useRef<number | null>(null);
   useImagePreloader(icons);
+
+  useEffect(() => {
+    if (screen !== 'reveal' || revealIndex < 1) return;
+    if (revealScrollFrameRef.current !== null) cancelAnimationFrame(revealScrollFrameRef.current);
+    revealScrollFrameRef.current = requestAnimationFrame(() => {
+      revealScrollFrameRef.current = null;
+      const container = revealCardsRef.current;
+      const latestCard = container?.children.item(revealIndex - 1);
+      if (!container || !(latestCard instanceof HTMLElement)) return;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      centerRevealCard(container, latestCard, reduceMotion ? 'auto' : 'smooth');
+    });
+
+    return () => {
+      if (revealScrollFrameRef.current !== null) {
+        cancelAnimationFrame(revealScrollFrameRef.current);
+        revealScrollFrameRef.current = null;
+      }
+    };
+  }, [screen, revealIndex, activeParticipant]);
 
   useEffect(() => {
     try {
@@ -146,6 +175,7 @@ function App() {
   }
   function revealNext() {
     if (!tournament) return;
+    if (isRevealingAll) return;
     if (revealIndex < 10) { setRevealIndex((index) => index + 1); return; }
     if (activeParticipant < tournament.squads.length - 1) { setActiveParticipant((index) => index + 1); setRevealIndex(0); return; }
     setHistory((current) => current.map((record) =>
@@ -154,9 +184,6 @@ function App() {
         : record,
     ));
     navigateToScreen('dashboard');
-  }
-  function revealAll() {
-    setRevealIndex(10);
   }
   function exportSquad(squad: Squad) {
     const text = `${squad.playerName}'s ICON DRAFT\n\n${squad.players.map((p) => `${p.position}  ${p.name}`).join('\n')}`;
@@ -226,7 +253,7 @@ function App() {
 
   if (screen === 'reveal' && tournament && activeSquad) return (
     <main className="app-shell reveal-screen"><div className="noise" /><nav className="top-nav"><Logo /><span className="nav-status">DRAFT IN PROGRESS / {activeParticipant + 1} OF {tournament.squads.length}</span><button className="icon-button" onClick={toggleFullscreen} title="Fullscreen"><Maximize size={18} /></button></nav>
-      <section className="reveal-content"><div className="reveal-header"><span className="eyebrow"><span className="live-dot" /> LIVE DRAFT REVEAL</span><div className="reveal-progress"><span>{String(revealIndex).padStart(2, '0')}</span><div><i style={{ width: `${revealIndex * 10}%` }} /></div><span>10</span></div><h2>{activeSquad.playerName.toUpperCase()}'S <em>ICONS</em></h2><p>{revealIndex < 10 ? 'Your next ICON is ready to enter the pitch.' : 'The squad is complete. Ready for the next captain?'}</p></div><div className="reveal-cards">{activeSquad.players.slice(0, revealIndex).map((player) => <PlayerCard key={player.id} player={player} onClick={() => setSelectedPlayer(player)} />)}{revealIndex < 10 && <div className="mystery-card"><div><Sparkles size={30} /><span>?</span><small>ICON<br />INCOMING</small></div></div>}</div><div className="reveal-actions"><button className="primary-button reveal-button" onClick={revealNext}>{revealIndex < 10 ? <>REVEAL NEXT ICON <ChevronRight size={20} /></> : activeParticipant < tournament.squads.length - 1 ? <>NEXT PLAYER <ChevronRight size={20} /></> : <>VIEW TOURNAMENT <Trophy size={18} /></>}</button>{revealIndex < 10 && <button className="secondary-button" onClick={revealAll}><Sparkles size={17} /> REVEAL ALL ICONS</button>}</div></section>
+      <section className="reveal-content"><div className="reveal-header"><span className="eyebrow"><span className="live-dot" /> LIVE DRAFT REVEAL</span><div className="reveal-progress"><span>{String(revealIndex).padStart(2, '0')}</span><div><i style={{ width: `${revealIndex * 10}%` }} /></div><span>10</span></div><h2>{activeSquad.playerName.toUpperCase()}'S <em>ICONS</em></h2><p>{revealIndex < 10 ? 'Your next ICON is ready to enter the pitch.' : 'The squad is complete. Ready for the next captain?'}</p></div><div className="reveal-cards" ref={revealCardsRef}>{activeSquad.players.slice(0, revealIndex).map((player) => <PlayerCard key={player.id} player={player} onClick={() => setSelectedPlayer(player)} />)}{revealIndex < 10 && <div className="mystery-card"><div><Sparkles size={30} /><span>?</span><small>ICON<br />INCOMING</small></div></div>}</div><div className="reveal-actions"><button className="primary-button reveal-button" onClick={revealNext} disabled={isRevealingAll}>{revealIndex < 10 ? <>REVEAL NEXT ICON <ChevronRight size={20} /></> : activeParticipant < tournament.squads.length - 1 ? <>NEXT PLAYER <ChevronRight size={20} /></> : <>VIEW TOURNAMENT <Trophy size={18} /></>}</button>{revealIndex < 10 && <button className="secondary-button" onClick={startRevealAll} disabled={isRevealingAll}><Sparkles size={17} /> {isRevealingAll ? 'REVEALING ICONS...' : 'REVEAL ALL ICONS'}</button>}</div></section>
       {selectedPlayer && <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />}
     </main>
   );
