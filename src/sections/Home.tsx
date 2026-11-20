@@ -26,7 +26,7 @@ function Step({ number, icon, title, text }: { number: string; icon: React.React
 export default function Home({ onStart, onOpenDatabase, onOpenHistory }: { onStart: () => void; onOpenDatabase: () => void; onOpenHistory: () => void }) {
   return (
     <main className="app-shell home-screen home-redesign">
-      <img className="home-background" src="/home2.jpg" alt="" />
+      <img className="home-background" src="/home.webp" alt="" />
       <div className="home-background-shade" aria-hidden="true" />
       <div className="noise" aria-hidden="true" />
       <div className="home-player-markers" aria-hidden="true">
