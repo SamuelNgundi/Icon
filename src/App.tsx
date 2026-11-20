@@ -63,8 +63,7 @@ function App() {
       const container = revealCardsRef.current;
       const latestCard = container?.children.item(revealIndex - 1);
       if (!container || !(latestCard instanceof HTMLElement)) return;
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      centerRevealCard(container, latestCard, reduceMotion ? 'auto' : 'smooth');
+      centerRevealCard(container, latestCard);
     });
 
     return () => {

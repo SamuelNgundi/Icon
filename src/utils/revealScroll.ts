@@ -1,8 +1,4 @@
-export function centerRevealCard(
-  container: HTMLElement,
-  card: HTMLElement,
-  behavior: ScrollBehavior = 'smooth',
-): void {
+export function centerRevealCard(container: HTMLElement, card: HTMLElement): void {
   const containerRect = container.getBoundingClientRect();
   const cardRect = card.getBoundingClientRect();
   const targetLeft = Math.max(
@@ -15,6 +11,6 @@ export function centerRevealCard(
 
   if (Math.abs(targetLeft - container.scrollLeft) < 2) return;
 
-  if (typeof container.scrollTo === 'function') container.scrollTo({ left: targetLeft, behavior });
+  if (typeof container.scrollTo === 'function') container.scrollTo({ left: targetLeft, behavior: 'smooth' });
   else container.scrollLeft = targetLeft;
 }

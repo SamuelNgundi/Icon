@@ -82,12 +82,4 @@ describe('centerRevealCard', () => {
 
     expect(container.scrollTo).toHaveBeenCalledWith({ left: 300, behavior: 'smooth' });
   });
-
-  it('supports reduced-motion behavior', () => {
-    const { container, card } = createRevealElements();
-
-    centerRevealCard(container, card, 'auto');
-
-    expect(container.scrollTo).toHaveBeenCalledWith({ left: 362.5, behavior: 'auto' });
-  });
 });
