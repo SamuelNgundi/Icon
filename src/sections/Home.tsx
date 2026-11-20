@@ -1,18 +1,81 @@
-import { ChevronRight, RotateCcw, Shield, Sparkles, Trophy, Users, Zap } from 'lucide-react';
+import { ChevronRight, Database, RotateCcw, Shield, Sparkles, Trophy, Users, Zap } from 'lucide-react';
+
+const markerIds = Array.from({ length: 10 }, (_, index) => index);
 
 function Logo() {
-  return <div className="logo"><span>FC</span><strong>26</strong><i>ICON DRAFT</i></div>;
+  return (
+    <div className="home-brand">
+      <span className="home-brand-mark"><span>FC</span><strong>26</strong></span>
+      <span className="home-brand-name">ICON DRAFT</span>
+    </div>
+  );
 }
 
 function Step({ number, icon, title, text }: { number: string; icon: React.ReactNode; title: string; text: string }) {
-  return <div className="step"><span className="step-number">{number}</span><div className="step-icon">{icon}</div><h3>{title}</h3><p>{text}</p></div>;
+  return (
+    <li className="home-step">
+      <span className="home-step-number">{number}</span>
+      <div className="home-step-copy">
+        <span className="home-step-title">{icon}{title}</span>
+        <span className="home-step-description">{text}</span>
+      </div>
+    </li>
+  );
 }
 
 export default function Home({ onStart, onOpenDatabase, onOpenHistory }: { onStart: () => void; onOpenDatabase: () => void; onOpenHistory: () => void }) {
-  return <main className="app-shell home-screen">
-    <div className="noise" /><nav className="top-nav"><Logo /><div className="nav-actions"><button className="text-button" onClick={onOpenDatabase}><Shield size={16} /> ICON DATABASE</button><button className="text-button" onClick={onOpenHistory}><RotateCcw size={16} /> DRAFT HISTORY</button><span className="nav-status"><span className="status-dot" /> OFFLINE MODE</span></div></nav>
-    <section className="hero"><div className="hero-copy"><p className="eyebrow"><Zap size={14} /> THE ULTIMATE OFFLINE DRAFT EXPERIENCE</p><h1>FC 26<br /><em>ICON DRAFT</em></h1><p className="hero-subtitle">Build Your Legends.<br /><strong>Rule Your Tournament.</strong></p><p className="hero-description">The only draft companion you need for your FC 26 tournament. Assemble your dream squad from football's greatest legends.</p><button className="primary-button" onClick={onStart}>START NEW TOURNAMENT</button></div><div className="hero-visual"><div className="hero-ring ring-one" /><div className="hero-ring ring-two" /><div className="hero-ball">⚽</div><div className="hero-badge"><Trophy size={18} /><span>LEGENDS<br /><b>ONLY</b></span></div></div></section>
-    <section className="how-section"><div className="section-heading"><span className="eyebrow">THE PLAYBOOK</span><h2>HOW TO PLAY</h2></div><div className="steps"><Step number="01" icon={<Users />} title="Gather your squad" text="Choose 4–6 players and enter their names." /><Step number="02" icon={<Sparkles />} title="Start the draft" text="Every player gets 10 unique football ICONS." /><Step number="03" icon={<Trophy />} title="Build your legacy" text="Reveal, compare and crown your champion." /></div></section>
-    <footer><span>FC 26 ICON DRAFT</span><span>BUILT FOR THE BEAUTIFUL GAME</span><span>v1.0 / OFFLINE READY</span></footer>
-  </main>;
+  return (
+    <main className="app-shell home-screen home-redesign">
+      <img className="home-background" src="/home2.jpg" alt="" />
+      <div className="home-background-shade" aria-hidden="true" />
+      <div className="noise" aria-hidden="true" />
+      <div className="home-player-markers" aria-hidden="true">
+        {markerIds.map((id) => <span className="home-player-marker" key={id}><Shield size={15} /><i>✦</i></span>)}
+      </div>
+
+      <header className="home-nav">
+        <Logo />
+        <nav className="home-utilities" aria-label="Homepage tools">
+          <span className="home-offline"><i /> OFFLINE MODE</span>
+          <button type="button" className="home-utility" onClick={onOpenDatabase} aria-label="Open ICON database" title="ICON Database">
+            <Database size={16} /><span>ICON DATABASE</span>
+          </button>
+          <button type="button" className="home-utility" onClick={onOpenHistory} aria-label="Open draft history" title="Draft History">
+            <RotateCcw size={16} /><span>DRAFT HISTORY</span>
+          </button>
+        </nav>
+      </header>
+
+      <section className="home-stage">
+        <div className="home-glass-panel">
+          <p className="home-kicker"><Zap size={14} /> THE ULTIMATE OFFLINE DRAFT EXPERIENCE</p>
+          <h1><span>FC 26</span><em>ICON DRAFT</em></h1>
+          <p className="home-tagline">Build Your Legends.<br /><strong>Rule Your Tournament.</strong></p>
+          <p className="home-description">The only draft companion you need for your FC 26 tournament. Assemble your dream squad from football's greatest legends.</p>
+
+          <div className="home-playbook-heading"><span>THE PLAYBOOK</span><i /> <span>THREE STEPS TO GLORY</span></div>
+          {/* <ol className="home-playbook">
+            <Step number="01" icon={<Users size={14} />} title="Gather your squad" text="Choose 4–6 players and enter their names." />
+            <Step number="02" icon={<Sparkles size={14} />} title="Start the draft" text="Every player gets 10 unique football ICONS." />
+            <Step number="03" icon={<Trophy size={14} />} title="Build your legacy" text="Reveal, compare and crown your champion." />
+          </ol> */}
+        </div>
+      </section>
+
+      <aside className="home-bottom-panel">
+        <div className="home-bottom-info">
+          <div className="home-info-brand">
+            <span className="home-info-emblem"><Shield size={22} /><i>✦</i></span>
+            <span className="home-info-copy"><strong>FC 26 ICON DRAFT</strong><small>Built for the beautiful game</small></span>
+          </div>
+          <div className="home-info-facts">
+            <span className="home-info-stat"><strong>10</strong><small>ICONS / SQUAD</small></span>
+          </div>
+        </div>
+        <button type="button" className="home-start-button" onClick={onStart}>
+          <span>START NEW TOURNAMENT</span><ChevronRight size={20} />
+        </button>
+      </aside>
+    </main>
+  );
 }

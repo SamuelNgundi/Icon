@@ -2,7 +2,11 @@ const CACHE_NAME = 'fc26-images-v1';
 const IMAGE_PATH = '/player_cards/';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    if (!await cache.match('/home-pitch.jpg')) await cache.add('/home-pitch.jpg');
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -39,7 +43,7 @@ async function cacheFirst(request) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin ||
-      (!url.pathname.startsWith(IMAGE_PATH) && url.pathname !== '/favicon.svg')) return;
+      (!url.pathname.startsWith(IMAGE_PATH) && url.pathname !== '/favicon.svg' && url.pathname !== '/home-pitch.jpg')) return;
 
   event.respondWith(cacheFirst(event.request));
 });
