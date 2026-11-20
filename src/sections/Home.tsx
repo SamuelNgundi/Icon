@@ -1,4 +1,4 @@
-import { ChevronRight, Database, RotateCcw, Shield, Sparkles, Trophy, Users, Zap } from 'lucide-react';
+import { ChevronRight, Database, RotateCcw, Shield, Zap } from 'lucide-react';
 
 const markerIds = Array.from({ length: 10 }, (_, index) => index);
 
@@ -8,18 +8,6 @@ function Logo() {
       <span className="home-brand-mark"><span>FC</span><strong>26</strong></span>
       <span className="home-brand-name">ICON DRAFT</span>
     </div>
-  );
-}
-
-function Step({ number, icon, title, text }: { number: string; icon: React.ReactNode; title: string; text: string }) {
-  return (
-    <li className="home-step">
-      <span className="home-step-number">{number}</span>
-      <div className="home-step-copy">
-        <span className="home-step-title">{icon}{title}</span>
-        <span className="home-step-description">{text}</span>
-      </div>
-    </li>
   );
 }
 
@@ -53,12 +41,9 @@ export default function Home({ onStart, onOpenDatabase, onOpenHistory }: { onSta
           <p className="home-tagline">Build Your Legends.<br /><strong>Rule Your Tournament.</strong></p>
           <p className="home-description">The only draft companion you need for your FC 26 tournament. Assemble your dream squad from football's greatest legends.</p>
 
-          <div className="home-playbook-heading"><span>THE PLAYBOOK</span><i /> <span>THREE STEPS TO GLORY</span></div>
-          {/* <ol className="home-playbook">
-            <Step number="01" icon={<Users size={14} />} title="Gather your squad" text="Choose 4–6 players and enter their names." />
-            <Step number="02" icon={<Sparkles size={14} />} title="Start the draft" text="Every player gets 10 unique football ICONS." />
-            <Step number="03" icon={<Trophy size={14} />} title="Build your legacy" text="Reveal, compare and crown your champion." />
-          </ol> */}
+          <button type="button" className="home-start-button" onClick={onStart}>
+            <span>START NEW TOURNAMENT</span><ChevronRight size={20} />
+          </button>
         </div>
       </section>
 
@@ -72,9 +57,6 @@ export default function Home({ onStart, onOpenDatabase, onOpenHistory }: { onSta
             <span className="home-info-stat"><strong>10</strong><small>ICONS / SQUAD</small></span>
           </div>
         </div>
-        <button type="button" className="home-start-button" onClick={onStart}>
-          <span>START NEW TOURNAMENT</span><ChevronRight size={20} />
-        </button>
       </aside>
     </main>
   );
