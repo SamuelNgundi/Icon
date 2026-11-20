@@ -55,9 +55,9 @@
 .home-player-marker:nth-child(5){top:50%;left:47%;animation-delay:-1.7s}
 .home-player-marker:nth-child(6){top:58%;left:47%;animation-delay:-2.7s}
 .home-player-marker:nth-child(7){top:50%;left:32%;animation-delay:-.9s}
-.home-player-marker:nth-child(8){top:67%;left:30%;animation-delay:-2s}
+.home-player-marker:nth-child(8){top:64%;left:36%;animation-delay:-2s}
 .home-player-marker:nth-child(9){top:50%;left:62%;animation-delay:-1.3s}
-.home-player-marker:nth-child(10){top:67%;left:56%;animation-delay:-3.1s}
+.home-player-marker:nth-child(10){top:64%;left:57%;animation-delay:-3.1s}
 .home-bottom-panel{width:min(1360px,100%);margin:0 auto;padding:17px clamp(22px,6vw,82px) calc(17px + env(safe-area-inset-bottom));border:1px solid rgba(239,255,226,.2);border-bottom:0;border-radius:26px 26px 0 0;background:linear-gradient(145deg,rgba(15,29,21,.78),rgba(11,22,18,.72) 58%,rgba(19,35,29,.76));color:#f6f9ee;box-shadow:0 -16px 55px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.16);backdrop-filter:blur(24px) saturate(140%);-webkit-backdrop-filter:blur(24px) saturate(140%)}
 .home-bottom-panel:before{content:'';position:absolute;inset:0 8% auto;height:1px;background:linear-gradient(90deg,transparent,rgba(232,250,208,.42),transparent);pointer-events:none}
 .home-bottom-info{display:flex;align-items:center;justify-content:space-between;gap:20px}
